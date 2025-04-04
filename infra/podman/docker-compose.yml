@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  client:
+    build:
+      context: ../../apps/client
+      dockerfile: Dockerfile
+    container_name: client
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - frontend-network
+
+  server:
+    build:
+      context: ../../apps/server
+      dockerfile: Dockerfile
+    container_name: server
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://agileuser:${DB_PASSWORD:-agilepassword}@db:5432/agiledb
+      - SECRET_KEY=${SECRET_KEY:-temporary_secret_key_change_this_in_production}
+    restart: unless-stopped
+    networks:
+      - frontend-network
+      - backend-network
+    volumes:
+      - server-data:/app/data
+
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: agileuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-agilepassword}
+      POSTGRES_DB: agiledb
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - backend-network
+
+networks:
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  server-data:
