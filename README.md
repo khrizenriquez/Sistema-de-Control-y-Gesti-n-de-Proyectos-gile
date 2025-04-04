@@ -1,120 +1,144 @@
-# Proyecto: Sistema de Control y Gestión de Proyectos Ágiles con Integración de IA
+# Sistema de Control y Gestión de Proyectos Ágiles
 
-Este repositorio contiene un monorepo que integra:
-- **Preact + TailwindCSS** (frontend)
-- **FastAPI + PostgreSQL** (backend)
-- Opcionalmente, herramientas de infraestructura (Docker/Podman, scripts de CI/CD, etc.)
+Sistema completo para la gestión de proyectos ágiles con metodologías modernas, compuesto por un cliente web (frontend), una API REST (backend) y una base de datos PostgreSQL.
 
-## Estructura del Repositorio
+## Requisitos previos
+
+- **Podman** (recomendado v4.0+)
+- Node.js 18+ (solo para desarrollo)
+- Python 3.11+ (solo para desarrollo)
+
+## Estructura del proyecto
 
 ```
-my-project/
-├─ apps/
-│  ├─ client/
-│  │  ├─ src/
-│  │  │  ├─ components/
-│  │  │  ├─ pages/
-│  │  │  ├─ hooks/
-│  │  │  ├─ services/
-│  │  │  └─ main.tsx
-│  │  ├─ public/
-│  │  ├─ index.html
-│  │  ├─ package.json
-│  │  └─ tailwind.config.js
-│  └─ server/
-│     ├─ app/
-│     │  ├─ api/            (routers/controladores)
-│     │  ├─ core/           (config, middlewares, utils)
-│     │  ├─ db/             (conexión a la DB)
-│     │  ├─ models/         (modelos ORM)
-│     │  ├─ schemas/        (schemas de Pydantic)
-│     │  ├─ services/       (lógica de negocio)
-│     │  └─ main.py
-│     ├─ tests/
-│     ├─ requirements.txt
-│     └─ ...
-├─ packages/                (opcional; librerías/funciones compartidas)
-├─ infra/                   (opcional; scripts de despliegue, CI/CD, etc.)
-├─ .gitignore
-└─ README.md (este archivo)
+├── apps/
+│   ├── client/          # Frontend con React
+│   └── server/          # Backend con FastAPI
+├── infra/
+│   ├── podman/          # Configuración de contenedores
+│   └── scripts/         # Scripts de utilidad
+├── podman-run.sh        # Script principal para ejecutar con Podman
+└── compose.sh           # Script legacy (usa podman-run.sh)
 ```
 
-- **apps/client**: Todo el código del frontend (Preact + TailwindCSS).
-- **apps/server**: Lógica y configuración de tu API con FastAPI.
-- **packages**: (Opcional) Para librerías o utilidades comunes compartidas entre cliente y servidor.
-- **infra**: (Opcional) Scripts y configuraciones de infraestructura (docker-compose, CI/CD, etc.).
+## Inicio rápido
 
-## Requerimientos
-
-- Node.js (versión estable recomendada) para el entorno frontend.
-- Python 3.9+ para el backend con FastAPI.
-- PostgreSQL (versión estable recomendada) para la base de datos.
-- (Opcional) Docker o Podman, si vas a contenedizar la aplicación.
-
-## Instalación y Ejecución
-
-### 1. Clonar el repositorio
+La forma más sencilla de ejecutar la aplicación es usando el script `podman-run.sh`:
 
 ```bash
-git clone https://github.com/khrizenriquez/Sistema-de-Control-y-Gesti-n-de-Proyectos-gile.git
-cd Sistema-de-Control-y-Gesti-n-de-Proyectos-gile
+# Iniciar todos los servicios (frontend, backend, base de datos)
+./podman-run.sh
 ```
 
-### 2. Configurar el Frontend
+La aplicación estará disponible en:
+
+- **Frontend**: http://localhost:3000
+- **Backend**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs (documentación OpenAPI/Swagger)
+
+> **Nota para usuarios de macOS/Windows**: En algunos casos, necesitarás usar la IP de la máquina virtual de Podman en lugar de localhost. El script te mostrará la URL correcta.
+
+## Comandos útiles
+
+### Gestión de contenedores
+
+```bash
+# Ver contenedores en ejecución
+podman ps
+
+# Detener todos los servicios
+podman stop client server db
+
+# Eliminar todos los contenedores
+podman rm client server db
+```
+
+### Logs y depuración
+
+```bash
+# Ver logs de cada servicio
+podman logs client
+podman logs server
+podman logs db
+
+# Acceso a shell dentro de los contenedores
+podman exec -it client sh
+podman exec -it server sh
+podman exec -it db bash
+```
+
+### Construcción manual
+
+```bash
+# Construir imágenes individualmente
+podman build -t client ./apps/client
+podman build -t server ./apps/server
+
+# Ejecutar contenedores individualmente
+podman run -d --name server -p 8000:8000 server
+podman run -d --name client -p 3000:3000 client
+```
+
+## Configuración
+
+1. Crea un archivo `.env` en el directorio `infra/podman/` basado en el archivo `.env.example`:
+
+```bash
+cp infra/podman/.env.example infra/podman/.env
+```
+
+2. Edita el archivo `.env` para configurar variables de entorno como contraseñas y claves secretas.
+
+## Desarrollo
+
+### Backend (FastAPI)
+
+El backend está construido con FastAPI y expone:
+- API RESTful con autenticación JWT
+- Documentación automática con Swagger/OpenAPI
+- Conexión a PostgreSQL mediante SQLAlchemy
+
+Para desarrollo local del backend:
+
+```bash
+cd apps/server
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+### Frontend (React)
+
+El frontend está construido con React y se comunica con el backend mediante API REST.
+
+Para desarrollo local del frontend:
 
 ```bash
 cd apps/client
 npm install
-# o yarn install
-
-# Para desarrollo:
 npm run dev
-
-# Para compilación de producción:
-npm run build
 ```
 
-### 3. Configurar el Backend
+## Solución de problemas comunes
+
+### Problemas con Podman en macOS
+
+Si encuentras problemas con `gateway.containers.internal` en macOS:
 
 ```bash
-cd ../server
-# Instalar dependencias con pip
-pip install -r requirements.txt
+# Reiniciar máquina Podman
+podman machine stop
+podman machine start
 
-# Ajustar variables de entorno (ejemplo)
-export DATABASE_URL=postgresql://user:password@localhost:5432/mi_database
-
-# Ejecutar la aplicación
-uvicorn app.main:app --reload
+# Ver la IP de la máquina Podman
+podman machine inspect | grep -A 10 ConnectionInfo
 ```
 
-> Asegúrate de tener tu instancia de PostgreSQL lista y configurada. Puedes crear la base de datos y usuarios antes de iniciar la aplicación.
+### Acceso a los servicios
 
-### 4. Opcional: Uso de Docker/Podman
-
-Si deseas levantar todo con contenedores, revisa el archivo `docker-compose.yml` (en `infra/` si lo tienes). Ejemplo básico:
-
-```bash
-docker-compose up --build
-```
-
-Esto debería:
-- Construir la imagen del backend (FastAPI).
-- Construir la imagen del frontend (Preact).
-- Levantar un contenedor de PostgreSQL.
-- Correr todo en un mismo entorno.
-
-## Estructura de Código y Buenas Prácticas
-
-- **Front**: Separa la lógica de negocio (services, hooks) de la lógica de presentación (components, pages).  
-- **Back**: Aplica organización en capas (routers en `api/`, lógica de negocio en `services/`, modelos en `models/`, etc.).  
-- **Tests**: Los tests unitarios e integración residen en la carpeta `tests` del backend. En el frontend, puedes crear `__tests__/` o `tests/` junto a los componentes o en una carpeta global.
-
-## Contribución
-
-1. Crea una rama para tu feature o bug fix (`git checkout -b feature/nueva-feature`).
-2. Realiza tus cambios y asegúrate de que las pruebas pasen.
-3. Haz push de tu rama y crea un Pull Request.
+Si no puedes acceder a los servicios usando localhost, intenta usar:
+- La IP de la máquina Podman (mostrada por el script)
+- `podman-machine` si lo has configurado en `/etc/hosts`
 
 ## Licencia
 
+MIT
