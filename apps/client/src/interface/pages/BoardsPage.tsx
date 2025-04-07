@@ -71,7 +71,7 @@ export const BoardsPage: FunctionComponent = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {templates.map((template) => (
-            <Link href={`/board/new/${template.id}`} key={template.id}>
+            <Link href={`/boards/new/${template.id}`} key={template.id}>
               <a className="block group">
                 <div className="relative aspect-video rounded-lg overflow-hidden mb-3">
                   <img
@@ -92,7 +92,7 @@ export const BoardsPage: FunctionComponent = () => {
           ))}
 
           {/* Create Custom Board */}
-          <Link href="/board/new/custom">
+          <Link href="/boards/new/custom">
             <a className="block">
               <div className="relative aspect-video rounded-lg overflow-hidden mb-3 bg-gray-100 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors">
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -128,7 +128,7 @@ export const BoardsPage: FunctionComponent = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {recentBoards.map((board) => (
-            <Link href={`/board/${board.id}`} key={board.id}>
+            <Link href={`/boards/${board.id}`} key={board.id}>
               <a className="block group">
                 <div className={`relative aspect-video rounded-lg overflow-hidden mb-3 ${board.background}`}>
                   <div className="absolute inset-0 bg-black bg-opacity-10 opacity-0 group-hover:opacity-100 transition-opacity">
