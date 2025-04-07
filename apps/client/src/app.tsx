@@ -4,6 +4,8 @@ import { RegisterPage } from './interface/pages/RegisterPage';
 import { DashboardPage } from './interface/pages/DashboardPage';
 import { BoardPage } from './interface/pages/BoardPage';
 import { ProfilePage } from './interface/pages/ProfilePage';
+import { BoardsPage } from './interface/pages/BoardsPage';
+import { BoardSettingsPage } from './interface/pages/BoardSettingsPage';
 import './style.css'
 
 export function App() {
@@ -13,8 +15,10 @@ export function App() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/dashboard" component={DashboardPage} />
-      <Route path="/board" component={BoardPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/boards" component={BoardsPage} />
+      <Route path="/boards/:id" component={BoardPage} />
+      <Route path="/boards/:id/settings" component={BoardSettingsPage} />
     </Switch>
   );
 }
