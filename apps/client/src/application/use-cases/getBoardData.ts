@@ -1,11 +1,11 @@
 import { BoardApiAdapter } from '../../infrastructure/adapters/BoardApiAdapter';
 import { BoardData, UpdateBoardOrder } from '../../domain/services/BoardService';
 
-export async function getBoardData(): Promise<BoardData> {
+export async function getBoardData(boardId: string): Promise<BoardData> {
   const boardApi = new BoardApiAdapter();
   
   try {
-    return await boardApi.getBoardData();
+    return await boardApi.getBoardData(boardId);
   } catch (error) {
     console.error('Error getting board data:', error);
     throw error;

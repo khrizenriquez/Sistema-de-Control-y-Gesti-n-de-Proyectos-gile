@@ -1,106 +1,170 @@
 import { FunctionComponent } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { getBoardData, updateCardOrder } from '../../application/use-cases/getBoardData';
-import { BoardData } from '../../domain/services/BoardService';
 import { KanbanColumn } from '../components/KanbanColumn';
 
+// Tipos
+interface Card {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  attachments?: number;
+  checklistProgress?: {
+    completed: number;
+    total: number;
+  };
+  assignee?: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+}
+
+interface Column {
+  id: string;
+  title: string;
+  cards: Card[];
+}
+
+interface Board {
+  columns: Column[];
+}
+
 export const BoardPage: FunctionComponent = () => {
-  const [data, setData] = useState<BoardData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const boardData = await getBoardData();
-        setData(boardData);
-      } catch (error) {
-        console.error('Error fetching board data:', error);
-      } finally {
-        setLoading(false);
+  // Estado inicial del tablero (mock data)
+  const [board, setBoard] = useState<Board>({
+    columns: [
+      {
+        id: 'todo',
+        title: 'To Do',
+        cards: [
+          {
+            id: 'card-1',
+            title: 'Implementar autenticación',
+            description: 'Agregar sistema de login y registro',
+            dueDate: '2024-04-01',
+            attachments: 2,
+            checklistProgress: { completed: 2, total: 5 },
+            assignee: {
+              id: 'user-1',
+              name: 'John Doe',
+              avatar: 'https://i.pravatar.cc/150?img=1'
+            }
+          }
+        ]
+      },
+      {
+        id: 'in-progress',
+        title: 'In Progress',
+        cards: [
+          {
+            id: 'card-2',
+            title: 'Diseñar interfaz de usuario',
+            description: 'Crear mockups y prototipos',
+            dueDate: '2024-03-25',
+            attachments: 5,
+            checklistProgress: { completed: 3, total: 8 },
+            assignee: {
+              id: 'user-2',
+              name: 'Jane Smith',
+              avatar: 'https://i.pravatar.cc/150?img=2'
+            }
+          }
+        ]
+      },
+      {
+        id: 'done',
+        title: 'Done',
+        cards: []
       }
-    };
+    ]
+  });
 
-    fetchData();
-  }, []);
+  // Manejador para actualizar una tarjeta
+  const handleCardUpdate = (cardId: string, updates: Partial<Card>) => {
+    setBoard(prevBoard => ({
+      columns: prevBoard.columns.map(column => ({
+        ...column,
+        cards: column.cards.map(card => 
+          card.id === cardId ? { ...card, ...updates } : card
+        )
+      }))
+    }));
+  };
 
-  const handleDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId } = result;
+  // Manejador para el drag and drop
+  const handleDragEnd = (result: DropResult) => {
+    const { destination, source } = result;
 
-    // Si no hay destino o el destino es el mismo que el origen, no hacemos nada
-    if (!destination || (
+    // Si no hay destino válido, no hacemos nada
+    if (!destination) return;
+
+    // Si el origen y destino son iguales, no hacemos nada
+    if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
-    )) {
+    ) {
       return;
     }
 
-    // Crear una copia profunda del estado actual
-    const newData = JSON.parse(JSON.stringify(data));
-    if (!newData) return;
-
     // Encontrar las columnas de origen y destino
-    const sourceColumn = newData.columns.find((col: any) => col.id === source.droppableId);
-    const destColumn = newData.columns.find((col: any) => col.id === destination.droppableId);
+    const sourceColumn = board.columns.find(col => col.id === source.droppableId);
+    const destColumn = board.columns.find(col => col.id === destination.droppableId);
 
     if (!sourceColumn || !destColumn) return;
 
-    // Remover la tarjeta de la columna de origen
-    const [movedCard] = sourceColumn.cards.splice(source.index, 1);
+    // Crear nuevas arrays para las columnas
+    const newSourceCards = Array.from(sourceColumn.cards);
+    const newDestCards = source.droppableId === destination.droppableId 
+      ? newSourceCards 
+      : Array.from(destColumn.cards);
 
-    // Insertar la tarjeta en la columna de destino
-    destColumn.cards.splice(destination.index, 0, movedCard);
+    // Remover la tarjeta del origen
+    const [movedCard] = newSourceCards.splice(source.index, 1);
 
-    // Actualizar el estado localmente primero (optimistic update)
-    setData(newData);
-
-    // Enviar la actualización al servidor
-    try {
-      await updateCardOrder({
-        sourceColumnId: source.droppableId,
-        destinationColumnId: destination.droppableId,
-        sourceIndex: source.index,
-        destinationIndex: destination.index,
-        cardId: draggableId,
-      });
-    } catch (error) {
-      console.error('Error updating card order:', error);
-      // En caso de error, podríamos revertir el cambio local
-      const originalData = await getBoardData();
-      setData(originalData);
+    // Insertar la tarjeta en el destino
+    if (source.droppableId === destination.droppableId) {
+      newSourceCards.splice(destination.index, 0, movedCard);
+    } else {
+      newDestCards.splice(destination.index, 0, movedCard);
     }
+
+    // Actualizar el estado
+    setBoard(prevBoard => ({
+      columns: prevBoard.columns.map(column => {
+        if (column.id === source.droppableId) {
+          return {
+            ...column,
+            cards: newSourceCards
+          };
+        }
+        if (column.id === destination.droppableId) {
+          return {
+            ...column,
+            cards: newDestCards
+          };
+        }
+        return column;
+      })
+    }));
   };
 
-  if (loading || !data) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Project Board</h1>
-        <p className="text-gray-600">Manage your projects and tasks</p>
-      </div>
+    <div className="p-6">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Tablero del Proyecto</h1>
+      </header>
 
-      {/* Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex space-x-6 overflow-x-auto pb-6">
-          {data.columns.map((column) => (
-            <KanbanColumn key={column.id} column={column} />
+        <div className="flex gap-6 overflow-x-auto pb-4">
+          {board.columns.map(column => (
+            <KanbanColumn 
+              key={column.id} 
+              column={column}
+              onCardUpdate={handleCardUpdate}
+            />
           ))}
-
-          {/* Add Column Button */}
-          <button className="bg-gray-100 rounded-lg p-4 w-80 flex-shrink-0 h-16 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Add another list
-          </button>
         </div>
       </DragDropContext>
     </div>

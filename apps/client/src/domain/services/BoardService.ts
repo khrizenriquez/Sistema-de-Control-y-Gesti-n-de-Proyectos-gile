@@ -1,10 +1,14 @@
 import { Column } from '../entities/Column';
 
 export interface BoardData {
+  id: string;
+  title: string;
+  description?: string;
   columns: Column[];
 }
 
 export interface UpdateBoardOrder {
+  boardId: string;
   sourceColumnId: string;
   destinationColumnId: string;
   sourceIndex: number;
@@ -13,9 +17,12 @@ export interface UpdateBoardOrder {
 }
 
 export class BoardService {
-  async getBoardData(): Promise<BoardData> {
+  async getBoardData(boardId: string): Promise<BoardData> {
     // En un caso real, esto vendría de una API
     return {
+      id: boardId,
+      title: 'Project Board',
+      description: 'Manage your projects and tasks',
       columns: [
         {
           id: 'resources',

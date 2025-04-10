@@ -1,11 +1,14 @@
 import { BoardData, UpdateBoardOrder } from '../../domain/services/BoardService';
 
 export class BoardApiAdapter {
-  async getBoardData(): Promise<BoardData> {
+  async getBoardData(boardId: string): Promise<BoardData> {
     // Simular llamada a API
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
+          id: boardId,
+          title: 'Project Board',
+          description: 'Manage your projects and tasks',
           columns: [
             {
               id: 'resources',
