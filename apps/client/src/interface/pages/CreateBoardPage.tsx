@@ -111,7 +111,7 @@ export const CreateBoardPage: FunctionComponent = () => {
             {boardData.teamMembers.length > 0 && (
               <div className="mt-4">
                 <div className="flex -space-x-2">
-                  {boardData.teamMembers.map((member, index) => (
+                  {boardData.teamMembers.map((member) => (
                     <div
                       key={member.email}
                       className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm border-2 border-white"

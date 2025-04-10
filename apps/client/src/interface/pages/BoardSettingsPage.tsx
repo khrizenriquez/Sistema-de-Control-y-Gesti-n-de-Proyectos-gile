@@ -124,7 +124,7 @@ export const BoardSettingsPage: FunctionComponent = () => {
                       name="visibility"
                       value="private"
                       checked={visibility === 'private'}
-                      onChange={(e) => setVisibility('private')}
+                      onChange={() => setVisibility('private')}
                       className="h-4 w-4 text-blue-600 border-gray-300"
                     />
                     <div className="ml-3">
@@ -138,7 +138,7 @@ export const BoardSettingsPage: FunctionComponent = () => {
                       name="visibility"
                       value="team"
                       checked={visibility === 'team'}
-                      onChange={(e) => setVisibility('team')}
+                      onChange={() => setVisibility('team')}
                       className="h-4 w-4 text-blue-600 border-gray-300"
                     />
                     <div className="ml-3">
@@ -152,7 +152,7 @@ export const BoardSettingsPage: FunctionComponent = () => {
                       name="visibility"
                       value="public"
                       checked={visibility === 'public'}
-                      onChange={(e) => setVisibility('public')}
+                      onChange={() => setVisibility('public')}
                       className="h-4 w-4 text-blue-600 border-gray-300"
                     />
                     <div className="ml-3">

@@ -9,8 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.17",
+    "@fullcalendar/daygrid": "^6.1.17",
+    "@fullcalendar/interaction": "^6.1.17",
+    "@fullcalendar/timegrid": "^6.1.17",
     "@hello-pangea/dnd": "^18.0.1",
     "chart.js": "^4.4.8",
+    "date-fns": "^4.1.0",
     "preact": "^10.26.2",
     "react-chartjs-2": "^5.3.0",
     "wouter-preact": "^3.6.1"

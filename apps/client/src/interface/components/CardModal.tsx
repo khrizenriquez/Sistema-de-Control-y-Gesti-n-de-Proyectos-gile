@@ -51,7 +51,6 @@ interface CardModalProps {
 export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, onUpdate, availableBoards }) => {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
-  const [dueDate, setDueDate] = useState(card.dueDate || '');
   const [isWatching, setIsWatching] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
@@ -59,6 +58,7 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(card.cover?.color || '');
 
   // Manejadores para los modales
   const handleChecklistClick = () => {
@@ -85,19 +85,47 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
     setShowCopyModal(true);
   };
 
-  const handleSubmit = () => {
+  const saveChanges = () => {
     onUpdate(card.id, {
       title,
       description,
-      dueDate,
     });
+  };
+
+  const handleColorSelect = (color: string) => {
+    setSelectedColor(color);
+    onUpdate(card.id, {
+      cover: {
+        ...card.cover,
+        color
+      }
+    });
+  };
+
+  const getHeaderStyle = () => {
+    if (selectedColor) {
+      return {
+        backgroundColor: selectedColor,
+        color: 'white',
+        transition: 'background-color 0.3s ease'
+      };
+    }
+    return {};
+  };
+
+  const handleClose = () => {
+    saveChanges();
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-16 z-50">
       <div className="bg-gray-800 rounded-lg w-full max-w-2xl text-gray-100 shadow-xl">
-        {/* Header */}
-        <div className="flex justify-between items-start p-4">
+        {/* Header with dynamic background color */}
+        <div 
+          className="flex justify-between items-start p-4 rounded-t-lg"
+          style={getHeaderStyle()}
+        >
           <div className="flex-1">
             <input
               type="text"
@@ -105,14 +133,16 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
               onChange={(e) => setTitle(e.currentTarget.value)}
               className="w-full text-xl font-semibold bg-transparent border-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1"
               placeholder="Título de la tarjeta"
+              style={{ color: selectedColor ? 'white' : 'inherit' }}
+              onBlur={saveChanges}
             />
-            <div className="text-sm text-gray-400 mt-1">
+            <div className="text-sm mt-1" style={{ color: selectedColor ? 'rgba(255,255,255,0.8)' : 'inherit' }}>
               in your inbox
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-200"
+            onClick={handleClose}
+            className={selectedColor ? 'text-white hover:text-gray-200' : 'text-gray-400 hover:text-gray-200'}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -147,16 +177,17 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.currentTarget.value)}
+                  onBlur={saveChanges}
                   className="w-full h-32 bg-gray-700 text-gray-100 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 border-none"
                   placeholder="Add a more detailed description..."
                 />
               </div>
 
-              {/* Checklists */}
+              {/* Checklists - Moved here after description */}
               {card.checklists?.map((checklist) => (
-                <div key={checklist.id} className="space-y-2">
+                <div key={checklist.id} className="space-y-2 bg-gray-700/50 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm text-gray-400">{checklist.title}</h3>
+                    <h3 className="text-sm font-medium text-gray-200">{checklist.title}</h3>
                     <button className="text-sm text-gray-400 hover:text-gray-200">Delete</button>
                   </div>
                   <div className="space-y-2">
@@ -270,6 +301,90 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
         </div>
       </div>
 
+      {/* Cover Modal */}
+      {showCoverModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-4 w-96">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-100">Cover</h3>
+              <button
+                onClick={() => setShowCoverModal(false)}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Size</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="p-4 border-2 border-gray-600 rounded hover:border-blue-500 focus:border-blue-500">
+                    <div className="h-8 bg-gray-600 rounded mb-2"></div>
+                    <div className="h-2 bg-gray-600 rounded w-3/4"></div>
+                  </button>
+                  <button className="p-4 border-2 border-gray-600 rounded hover:border-blue-500 focus:border-blue-500">
+                    <div className="h-16 bg-gray-600 rounded mb-2"></div>
+                    <div className="h-2 bg-gray-600 rounded w-3/4"></div>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm text-gray-400">Colors</label>
+                  <button className="text-sm text-gray-400 hover:text-gray-200">
+                    Remove cover
+                  </button>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    '#4CAF50', // green
+                    '#FFC107', // yellow
+                    '#FF9800', // orange
+                    '#F44336', // red
+                    '#9C27B0', // purple
+                    '#2196F3', // blue
+                    '#009688', // teal
+                    '#8BC34A', // light green
+                    '#E91E63', // pink
+                    '#607D8B'  // gray
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => handleColorSelect(color)}
+                      className={`w-full h-8 rounded transition-all duration-200 hover:ring-2 hover:ring-offset-2 hover:ring-offset-gray-800 hover:ring-opacity-50`}
+                      style={{
+                        backgroundColor: color,
+                        border: selectedColor === color ? '2px solid white' : 'none'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  <input
+                    type="checkbox"
+                    className="mr-2 rounded border-gray-600"
+                  />
+                  Enable colorblind friendly mode
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Attachments</label>
+                <button className="w-full py-2 px-4 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors">
+                  Upload a cover image
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  Tip: Drag an image onto the card to upload it.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modales */}
       {showChecklistModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -371,46 +486,6 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
               </button>
               <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
                 Attach
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCoverModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-4 w-96">
-            <h3 className="text-lg font-semibold text-gray-100 mb-4">Cover</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Colors</label>
-                <div className="grid grid-cols-5 gap-2">
-                  {['red', 'blue', 'green', 'yellow', 'purple', 'pink', 'gray', 'orange', 'teal', 'indigo'].map((color) => (
-                    <button
-                      key={color}
-                      className={`w-full h-8 rounded bg-${color}-500 hover:ring-2 hover:ring-${color}-400`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Upload an image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="w-full bg-gray-700 text-gray-100 rounded-lg p-2"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => setShowCoverModal(false)}
-                className="px-4 py-2 text-gray-400 hover:text-gray-200"
-              >
-                Cancel
-              </button>
-              <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                Save
               </button>
             </div>
           </div>

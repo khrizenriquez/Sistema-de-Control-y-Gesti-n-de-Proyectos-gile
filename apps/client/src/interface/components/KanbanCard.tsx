@@ -3,15 +3,34 @@ import { useState } from 'preact/hooks';
 import { Draggable } from '@hello-pangea/dnd';
 import { CardModal } from './CardModal';
 
+// This interface should match what CardModal expects
 interface CardData {
   id: string;
   title: string;
   description?: string;
   dueDate?: string;
-  attachments?: number;
+  attachments?: Array<{
+    id: string;
+    url: string;
+    name: string;
+    type: string;
+  }>;
   checklistProgress?: {
     completed: number;
     total: number;
+  };
+  checklists?: Array<{
+    id: string;
+    title: string;
+    items: Array<{
+      id: string;
+      text: string;
+      completed: boolean;
+    }>;
+  }>;
+  cover?: {
+    color?: string;
+    image?: string;
   };
   assignee?: {
     id: string;
@@ -74,12 +93,12 @@ export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ card, index, on
               )}
 
               {/* Attachments */}
-              {card.attachments && card.attachments > 0 && (
+              {card.attachments && card.attachments.length > 0 && (
                 <div className="flex items-center space-x-1">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
-                  <span>{card.attachments}</span>
+                  <span>{card.attachments.length}</span>
                 </div>
               )}
 
@@ -113,7 +132,16 @@ export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ card, index, on
       {/* Card Modal */}
       {isModalOpen && (
         <CardModal
-          card={card}
+          card={{
+            id: card.id,
+            title: card.title,
+            description: card.description,
+            dueDate: card.dueDate,
+            attachments: card.attachments,
+            checklists: card.checklists,
+            cover: card.cover,
+            assignee: card.assignee
+          }}
           onClose={handleModalClose}
           onUpdate={handleCardUpdate}
         />

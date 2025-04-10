@@ -2,31 +2,64 @@ import { FunctionComponent } from 'preact';
 import { Droppable } from '@hello-pangea/dnd';
 import { KanbanCard } from './KanbanCard';
 
+// Define a type for the cards that matches the column data structure
+type ColumnCardType = {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  attachments?: number;
+  checklistProgress?: {
+    completed: number;
+    total: number;
+  };
+  assignee?: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+};
+
 interface KanbanColumnProps {
   column: {
     id: string;
     title: string;
-    cards: Array<{
-      id: string;
-      title: string;
-      description?: string;
-      dueDate?: string;
-      attachments?: number;
-      checklistProgress?: {
-        completed: number;
-        total: number;
-      };
-      assignee?: {
-        id: string;
-        name: string;
-        avatar: string;
-      };
-    }>;
+    cards: Array<ColumnCardType>;
   };
-  onCardUpdate?: (cardId: string, updates: Partial<KanbanColumnProps['column']['cards'][0]>) => void;
+  onCardUpdate?: (cardId: string, updates: Partial<ColumnCardType>) => void;
 }
 
 export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({ column, onCardUpdate }) => {
+  // Convert column card format to KanbanCard format
+  const convertCardFormat = (card: ColumnCardType) => {
+    // Convert attachments from number to array of objects as expected by KanbanCard
+    const attachments = card.attachments 
+      ? Array.from({ length: card.attachments }).map((_, i) => ({
+          id: `${card.id}-attachment-${i}`,
+          url: '#',
+          name: `Attachment ${i+1}`,
+          type: 'file'
+        })) 
+      : undefined;
+
+    return {
+      ...card,
+      attachments
+    };
+  };
+
+  // Handle card updates and convert back to column format
+  const handleCardUpdate = (cardId: string, updates: any) => {
+    if (onCardUpdate) {
+      // Convert attachments array back to number if it exists
+      const columnUpdates = { ...updates };
+      if (updates.attachments) {
+        columnUpdates.attachments = updates.attachments.length;
+      }
+      onCardUpdate(cardId, columnUpdates);
+    }
+  };
+
   return (
     <div className="w-80 flex-shrink-0">
       {/* Column Header */}
@@ -52,9 +85,9 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({ column, onC
             {column.cards.map((card, index) => (
               <KanbanCard
                 key={card.id}
-                card={card}
+                card={convertCardFormat(card)}
                 index={index}
-                onUpdate={onCardUpdate}
+                onUpdate={handleCardUpdate}
               />
             ))}
             {provided.placeholder}
