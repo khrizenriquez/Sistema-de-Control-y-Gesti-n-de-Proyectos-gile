@@ -12,13 +12,12 @@ Sistema completo para la gestión de proyectos ágiles con metodologías moderna
 
 ```
 ├── apps/
-│   ├── client/          # Frontend con React
+│   ├── client/          # Frontend con Preact
 │   └── server/          # Backend con FastAPI
 ├── infra/
 │   ├── podman/          # Configuración de contenedores
 │   └── scripts/         # Scripts de utilidad
-├── podman-run.sh        # Script principal para ejecutar con Podman
-└── compose.sh           # Script legacy (usa podman-run.sh)
+└── podman-run.sh        # Script principal para ejecutar con Podman
 ```
 
 ## Inicio rápido
@@ -106,9 +105,9 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-### Frontend (React)
+### Frontend (Preact)
 
-El frontend está construido con React y se comunica con el backend mediante API REST.
+El frontend está construido con Preact y se comunica con el backend mediante API REST.
 
 Para desarrollo local del frontend:
 
