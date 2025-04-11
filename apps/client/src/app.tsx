@@ -43,6 +43,7 @@ export function App() {
         <AuthRoute path="/profile" component={ProfilePage} />
         <AuthRoute path="/boards" component={BoardsPage} />
         <AuthRoute path="/boards/new" component={CreateBoardPage} />
+        <AuthRoute path="/boards/calendar" component={BoardCalendarPage} />
         <AuthRoute path="/boards/:id" component={BoardPage} />
         <AuthRoute path="/boards/:id/settings" component={BoardSettingsPage} />
         <AuthRoute path="/boards/:id/calendar" component={BoardCalendarPage} />
