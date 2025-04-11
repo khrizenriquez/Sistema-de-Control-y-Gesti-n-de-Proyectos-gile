@@ -17,7 +17,6 @@ export class DashboardService {
   constructor() {}
 
   async getDashboardData(): Promise<DashboardData> {
-    // En un caso real, esto vendría de una API
     return {
       projects: [
         { id: '1', name: 'UI/UX', progress: 70, type: 'UI/UX', color: '#3B82F6' },
