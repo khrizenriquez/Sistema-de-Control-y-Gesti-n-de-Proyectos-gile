@@ -16,12 +16,22 @@ fi
 
 # Detener y eliminar contenedores existentes
 echo "Limpiando contenedores existentes..."
-podman stop client server db 2>/dev/null || true
-podman rm client server db 2>/dev/null || true
+podman stop client server db pgadmin 2>/dev/null || true
+podman rm client server db pgadmin 2>/dev/null || true
 
 # Construir imágenes
 echo "Construyendo imágenes..."
-podman build -t client ./apps/client
+echo "¿Deseas ejecutar el cliente en modo desarrollo? (s/n)"
+read -r DEV_MODE
+
+if [[ "$DEV_MODE" =~ ^[Ss]$ ]]; then
+  echo "Construyendo cliente en modo desarrollo..."
+  podman build -t client-dev -f ./apps/client/Dockerfile.dev ./apps/client
+else
+  echo "Construyendo cliente en modo producción..."
+  podman build -t client ./apps/client
+fi
+
 podman build -t server ./apps/server
 
 # Crear red si no existe
@@ -29,9 +39,38 @@ if ! podman network ls | grep -q "agile-network"; then
   podman network create agile-network
 fi
 
-# Crear volumen para la base de datos si no existe
+# Crear volúmenes si no existen
 if ! podman volume ls | grep -q "postgres-data"; then
   podman volume create postgres-data
+fi
+
+if ! podman volume ls | grep -q "pgadmin-data"; then
+  podman volume create pgadmin-data
+fi
+
+if [[ "$DEV_MODE" =~ ^[Ss]$ ]] && ! podman volume ls | grep -q "client-node-modules"; then
+  podman volume create client-node-modules
+fi
+
+# Configurar variables
+POSTGRES_USER=agileuser
+POSTGRES_PASSWORD=agilepassword
+POSTGRES_DB=agiledb
+PGADMIN_EMAIL=admin@admin.com
+PGADMIN_PASSWORD=pgadminpwd
+
+# Supabase - pedir URLs si se necesitan (o dejar vacías)
+echo "¿Deseas configurar Supabase para autenticación? (s/n)"
+read -r USE_SUPABASE
+
+SUPABASE_URL=""
+SUPABASE_KEY=""
+
+if [[ "$USE_SUPABASE" =~ ^[Ss]$ ]]; then
+  echo "Ingresa la URL de Supabase:"
+  read -r SUPABASE_URL
+  echo "Ingresa la API Key de Supabase:"
+  read -r SUPABASE_KEY
 fi
 
 # Iniciar contenedores
@@ -41,28 +80,51 @@ echo "Iniciando contenedores..."
 echo "Iniciando base de datos..."
 podman run -d --name db \
   --network agile-network \
-  -e POSTGRES_USER=agileuser \
-  -e POSTGRES_PASSWORD=agilepassword \
-  -e POSTGRES_DB=agiledb \
+  -e POSTGRES_USER=${POSTGRES_USER} \
+  -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+  -e POSTGRES_DB=${POSTGRES_DB} \
   -v postgres-data:/var/lib/postgresql/data \
   -p 5432:5432 \
   postgres:15-alpine
+
+# Iniciar pgAdmin
+echo "Iniciando pgAdmin..."
+podman run -d --name pgadmin \
+  --network agile-network \
+  -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
+  -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
+  -v pgadmin-data:/var/lib/pgadmin \
+  -p 5050:80 \
+  dpage/pgadmin4
 
 # Ejecutar servidor (backend)
 echo "Iniciando servidor..."
 podman run -d --name server \
   --network agile-network \
-  -e DATABASE_URL=postgresql://agileuser:agilepassword@db:5432/agiledb \
+  -e DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB} \
   -e SECRET_KEY=temporary_secret_key_change_this_in_production \
+  -e SUPABASE_URL=${SUPABASE_URL} \
+  -e SUPABASE_KEY=${SUPABASE_KEY} \
+  -e LOAD_TEST_DATA=true \
   -p 8000:8000 \
   server
 
 # Ejecutar cliente (frontend)
-echo "Iniciando cliente..."
-podman run -d --name client \
-  --network agile-network \
-  -p 3000:3000 \
-  client
+if [[ "$DEV_MODE" =~ ^[Ss]$ ]]; then
+  echo "Iniciando cliente en modo desarrollo..."
+  podman run -d --name client \
+    --network agile-network \
+    -v "$(pwd)/apps/client:/app" \
+    -v "client-node-modules:/app/node_modules" \
+    -p 3000:3000 \
+    client-dev
+else
+  echo "Iniciando cliente en modo producción..."
+  podman run -d --name client \
+    --network agile-network \
+    -p 3000:3000 \
+    client
+fi
 
 # Mostrar información de acceso
 echo "Contenedores iniciados:"
@@ -107,11 +169,24 @@ if $IS_MAC_OR_WIN; then
   echo "- Frontend: http://$PODMAN_IP:3000"
   echo "- Backend:  http://$PODMAN_IP:8000"
   echo "- API Docs: http://$PODMAN_IP:8000/docs"
+  echo "- pgAdmin:  http://$PODMAN_IP:5050"
   echo ""
   echo "Si no puedes acceder usando la dirección anterior, intenta con:"
   echo "- http://localhost:3000 (frontend)"
   echo "- http://localhost:8000 (backend)"
+  echo "- http://localhost:5050 (pgAdmin)"
   echo "======================================================================"
+  echo ""
+  echo "Credenciales pgAdmin:"
+  echo "Email: ${PGADMIN_EMAIL}"
+  echo "Password: ${PGADMIN_PASSWORD}"
+  echo ""
+  echo "Datos de conexión a PostgreSQL desde pgAdmin:"
+  echo "Host: db"
+  echo "Port: 5432"
+  echo "Username: ${POSTGRES_USER}"
+  echo "Password: ${POSTGRES_PASSWORD}"
+  echo "Database: ${POSTGRES_DB}"
 else
   # En Linux, acceder directamente a localhost
   echo ""
@@ -120,11 +195,23 @@ else
   echo "- Frontend: http://localhost:3000"
   echo "- Backend:  http://localhost:8000"
   echo "- API Docs: http://localhost:8000/docs"
+  echo "- pgAdmin:  http://localhost:5050"
   echo "======================================================================"
+  echo ""
+  echo "Credenciales pgAdmin:"
+  echo "Email: ${PGADMIN_EMAIL}"
+  echo "Password: ${PGADMIN_PASSWORD}"
+  echo ""
+  echo "Datos de conexión a PostgreSQL desde pgAdmin:"
+  echo "Host: db"
+  echo "Port: 5432"
+  echo "Username: ${POSTGRES_USER}"
+  echo "Password: ${POSTGRES_PASSWORD}"
+  echo "Database: ${POSTGRES_DB}"
 fi
 
 echo ""
 echo "Comandos útiles:"
-echo "- Ver logs: podman logs [client|server|db]"
-echo "- Detener contenedores: podman stop client server db"
+echo "- Ver logs: podman logs [client|server|db|pgadmin]"
+echo "- Detener contenedores: podman stop client server db pgadmin"
 echo "- Ejecutar shell: podman exec -it [client|server|db] sh" 

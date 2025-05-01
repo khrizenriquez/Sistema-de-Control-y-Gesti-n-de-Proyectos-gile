@@ -1,14 +1,13 @@
-from sqlalchemy import Column, Integer, DateTime, Boolean
-from sqlalchemy.sql import func
-from app.database.base import Base
+from sqlmodel import Field, SQLModel
+from typing import Optional
+from datetime import datetime
+import uuid
 
-class BaseModel(Base):
+class BaseModel(SQLModel):
     """
     Modelo base con campos comunes para todos los modelos
     """
-    __abstract__ = True
-    
-    id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    is_active = Column(Boolean, default=True) 
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = Field(default=True) 
