@@ -1,1 +1,0 @@
-echo "DATABASE_URL: $DATABASE_URL"

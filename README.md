@@ -17,24 +17,40 @@ Sistema completo para la gestión de proyectos ágiles con metodologías moderna
 ├── infra/
 │   ├── podman/          # Configuración de contenedores
 │   └── scripts/         # Scripts de utilidad
-└── podman-run.sh        # Script principal para ejecutar con Podman
+└── start-environment.sh # Script principal para ejecutar con Podman
 ```
 
 ## Inicio rápido
 
-La forma más sencilla de ejecutar la aplicación es usando el script `podman-run.sh`:
+La forma más sencilla de ejecutar la aplicación es usando el script `start-environment.sh`:
 
 ```bash
 # Dar permisos de ejecución al script
-chmod +x ./podman-run.sh
+chmod +x ./start-environment.sh
 
 # Iniciar todos los servicios (frontend, backend, base de datos)
-./podman-run.sh
+./start-environment.sh
 ```
 
-Durante la ejecución del script, podrás elegir:
-- Ejecutar el cliente en modo desarrollo o producción
-- Configurar la integración con Supabase para autenticación
+El script acepta las siguientes opciones:
+
+- `--build`: Reconstruye las imágenes de los contenedores antes de iniciarlos
+- `--dev`: Inicia el cliente en modo desarrollo con volúmenes montados para actualización en tiempo real
+
+Ejemplos:
+```bash
+# Iniciar normalmente
+./start-environment.sh
+
+# Reconstruir imágenes y luego iniciar
+./start-environment.sh --build
+
+# Iniciar en modo desarrollo (monta volúmenes para el cliente)
+./start-environment.sh --dev
+
+# Combinar opciones
+./start-environment.sh --build --dev
+```
 
 La aplicación estará disponible en:
 
