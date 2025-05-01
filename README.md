@@ -100,6 +100,21 @@ El sistema utiliza varias variables de entorno que pueden configurarse:
 - `SUPABASE_KEY`: Clave API de Supabase
 - `LOAD_TEST_DATA`: Si se cargan datos de prueba en la BD ("true"/"false")
 
+### Archivos de entorno (.env)
+
+Se recomienda crear manualmente los archivos `.env` en los directorios `/apps/server` y `/apps/client` siguiendo la estructura de los archivos `.env.example`. Esto asegura que no se sobrescriban configuraciones personalizadas.
+
+Para generar una clave secreta segura para `SECRET_KEY`, puedes usar:
+```bash
+openssl rand -hex 32
+```
+
+### Variables para el cliente
+
+- `VITE_SUPABASE_URL`: URL de tu proyecto Supabase
+- `VITE_SUPABASE_ANON_KEY`: Clave anónima de API de Supabase
+- `VITE_API_URL`: URL base del API backend (por defecto http://localhost:8000)
+
 ## Desarrollo
 
 ### Backend (FastAPI)

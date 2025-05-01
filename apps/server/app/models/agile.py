@@ -1,5 +1,6 @@
 from sqlmodel import Field, SQLModel, Relationship
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
+from typing_extensions import List  # Usar typing_extensions para Python 3.8+
 from datetime import datetime
 from app.models.base import BaseModel
 from app.models.project import Project

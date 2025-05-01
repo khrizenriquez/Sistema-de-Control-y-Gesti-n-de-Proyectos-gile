@@ -1,11 +1,36 @@
 import asyncio
-from sqlmodel import Session
-from app.database.db import sync_engine
+from sqlmodel import Session, select
+from app.database.db import sync_engine, get_sync_session
 from app.models import (
     UserProfile, Project, ProjectMember, UserStory, Sprint,
     Board, List, Card, Task
 )
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
+
+def check_data_exists():
+    """Verificar si ya existen datos en las tablas principales"""
+    with Session(sync_engine) as session:
+        # Verificar si hay usuarios
+        user_count = session.exec(select(UserProfile)).first()
+        if user_count:
+            return True
+        return False
+
+async def seed_data():
+    """Función principal para sembrar datos, puede ser llamada desde otros lugares"""
+    if check_data_exists():
+        logger.info("Ya existen datos en la base de datos. Saltando el proceso de seeding.")
+        return False
+    
+    try:
+        create_test_data()
+        return True
+    except Exception as e:
+        logger.error(f"Error al crear datos de prueba: {str(e)}")
+        return False
 
 def create_test_data():
     """Crear datos de prueba para desarrollo"""
@@ -155,7 +180,9 @@ def create_test_data():
         session.add(task2)
         session.commit()
         
+        logger.info("Datos de prueba creados exitosamente")
         print("Datos de prueba creados exitosamente")
 
 if __name__ == "__main__":
+    # Para llamar directamente desde línea de comandos
     create_test_data() 

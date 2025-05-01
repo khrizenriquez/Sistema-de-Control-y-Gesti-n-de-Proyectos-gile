@@ -3,9 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 from typing import List
 import os
+import subprocess
+import logging
 
 from app.core.config import settings
 from app.database.db import create_db_and_tables
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -28,8 +37,31 @@ app.add_middleware(
 
 # Eventos de inicio y cierre
 @app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
+async def on_startup():
+    logger.info("Iniciando servidor...")
+    
+    # En lugar de create_db_and_tables(), ejecutar migraciones con Alembic
+    try:
+        # Ejecutar migraciones de Alembic
+        logger.info("Ejecutando migraciones de base de datos...")
+        alembic_cmd = "alembic upgrade head"
+        subprocess.run(alembic_cmd, shell=True, check=True)
+        logger.info("Migraciones completadas exitosamente")
+    except Exception as e:
+        logger.error(f"Error ejecutando migraciones: {str(e)}")
+        # Fallback a creación automática si las migraciones fallan
+        logger.info("Utilizando creación automática de tablas como fallback")
+        create_db_and_tables()
+    
+    # Cargar datos de prueba si está habilitado
+    if settings.LOAD_TEST_DATA and settings.LOAD_TEST_DATA.lower() == "true":
+        logger.info("Cargando datos de prueba...")
+        from app.database.seed import seed_data
+        success = await seed_data()
+        if success:
+            logger.info("Datos de prueba cargados exitosamente")
+        else:
+            logger.info("No se cargaron datos de prueba (posiblemente ya existan)")
 
 @app.get("/")
 async def root():

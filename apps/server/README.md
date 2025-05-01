@@ -1,6 +1,84 @@
-# Sistema de Control y Gestión de Proyectos Ágiles - Backend
+# API del Sistema de Control y Gestión de Proyectos Ágiles
 
-Backend desarrollado con FastAPI para el Sistema de Control y Gestión de Proyectos Ágiles.
+Backend desarrollado con FastAPI, SQLModel y PostgreSQL para la gestión de proyectos ágiles.
+
+## Inicio rápido
+
+```bash
+# Iniciar el servidor en modo desarrollo
+uvicorn app.main:app --reload
+```
+
+## Estructura del proyecto
+
+```
+├── app/
+│   ├── core/            # Configuraciones básicas
+│   ├── database/        # Configuración de BD y seeders
+│   ├── models/          # Modelos de datos (SQLModel)
+│   ├── routers/         # Endpoints de la API
+│   ├── schemas/         # Esquemas Pydantic
+│   └── main.py          # Punto de entrada de la aplicación
+├── migrations/          # Migraciones de Alembic
+│   ├── versions/        # Versiones de migraciones
+│   └── env.py           # Configuración de entorno para migraciones
+├── scripts/             # Scripts útiles
+│   └── migrate.py       # Script para facilitar migraciones
+├── requirements.txt     # Dependencias
+├── Dockerfile           # Configuración para Docker
+└── alembic.ini          # Configuración de Alembic
+```
+
+## Base de datos
+
+El sistema utiliza PostgreSQL con SQLModel como ORM y Alembic para migraciones.
+
+### Migraciones con Alembic
+
+Para manejar la estructura de la base de datos, utilizamos Alembic:
+
+```bash
+# Actualizar a la última versión
+python scripts/migrate.py
+
+# Crear una nueva migración
+python scripts/migrate.py --create "descripción del cambio"
+
+# Ver historial de migraciones
+python scripts/migrate.py --history
+
+# Volver a versión anterior
+python scripts/migrate.py --downgrade -1
+```
+
+### Datos de prueba
+
+El sistema carga datos de prueba automáticamente si la variable `LOAD_TEST_DATA=true`. Estos datos solo se cargan si la base de datos está vacía.
+
+## Autenticación con Supabase
+
+La autenticación está integrada con Supabase. Para configurarla:
+
+1. Crea un proyecto en Supabase y configura la autenticación por email
+2. Copia la URL y API Key en las variables de entorno
+3. Los usuarios autenticados serán vinculados con perfiles en `user_profiles`
+
+## Variables de entorno
+
+Crea un archivo `.env` en la raíz:
+
+```
+# Base de datos
+DATABASE_URL=postgresql+asyncpg://agileuser:agilepassword@db:5432/agiledb
+
+# Supabase (obligatorio para autenticación)
+SUPABASE_URL=https://your-project-url.supabase.co
+SUPABASE_KEY=your_supabase_anon_key
+
+# Configuración
+SECRET_KEY=clave_secreta_para_jwt
+LOAD_TEST_DATA=true  # solo en desarrollo
+```
 
 ## Requisitos
 
