@@ -113,6 +113,19 @@ Para conectarse a la base de datos desde pgAdmin:
 - **Username**: agileuser
 - **Password**: agilepassword
 
+### Usuarios de prueba para Supabase
+
+Para iniciar sesión en la aplicación, se han configurado los siguientes usuarios de prueba:
+
+| Rol             | Email                | Contraseña      |
+|-----------------|---------------------|-----------------|
+| admin           | admin@ingsistemas.gt   | Admin2025!      |
+| developer       | dev@ingsistemas.gt     | Developer2025!  |
+| product_owner   | pm@ingsistemas.gt      | Manager2025!    |
+| member          | member@ingsistemas.gt  | Member2025!     |
+
+Estos usuarios deben crearse en Supabase siguiendo las instrucciones en `apps/server/SUPABASE_SETUP.md`.
+
 ## Comandos útiles
 
 ### Gestión de contenedores
