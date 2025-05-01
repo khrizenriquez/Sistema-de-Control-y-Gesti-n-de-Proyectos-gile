@@ -88,6 +88,18 @@ La aplicación estará disponible en:
 - **API Docs**: http://localhost:8000/docs (documentación OpenAPI/Swagger)
 - **pgAdmin**: http://localhost:5050 (administración de la base de datos)
 
+### Contenedores del proyecto
+
+Al ejecutar el proyecto con éxito, deberías ver los siguientes contenedores en ejecución:
+
+![Contenedores del proyecto](contenedores-proyecto.png)
+
+Como se muestra en la imagen, el sistema se compone de 4 contenedores principales:
+- **client**: Frontend en Preact (puerto 3000)
+- **server**: Backend en FastAPI (puerto 8000)
+- **db**: Base de datos PostgreSQL (puerto 5432)
+- **pgadmin**: Administrador de PostgreSQL (puerto 5050)
+
 ### Credenciales de pgAdmin
 
 - **Email**: admin@example.com
