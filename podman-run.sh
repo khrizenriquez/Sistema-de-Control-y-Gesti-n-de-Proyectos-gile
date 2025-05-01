@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -e
 
+# Cargar variables de entorno si existen
+SERVER_ENV_FILE="apps/server/.env"
+CLIENT_ENV_FILE="apps/client/.env"
+
+# Cargar variables del servidor
+if [ -f "$SERVER_ENV_FILE" ]; then
+  echo "Cargando variables de entorno del servidor desde $SERVER_ENV_FILE"
+  source "$SERVER_ENV_FILE"
+fi
+
+# Cargar variables del cliente
+if [ -f "$CLIENT_ENV_FILE" ]; then
+  echo "Cargando variables de entorno del cliente desde $CLIENT_ENV_FILE"
+  source "$CLIENT_ENV_FILE"
+fi
+
 # Detectar sistema operativo
 IS_MAC_OR_WIN=false
 if [[ "$(uname -s)" =~ ^(Darwin|MINGW|MSYS) ]]; then
@@ -21,8 +37,19 @@ podman rm client server db pgadmin 2>/dev/null || true
 
 # Construir imágenes
 echo "Construyendo imágenes..."
-echo "¿Deseas ejecutar el cliente en modo desarrollo? (s/n)"
-read -r DEV_MODE
+
+# Usar valor de la variable CLIENT_DEV_MODE si existe, de lo contrario preguntar
+if [ -z "$CLIENT_DEV_MODE" ]; then
+  echo "¿Deseas ejecutar el cliente en modo desarrollo? (s/n)"
+  read -r DEV_MODE
+else
+  echo "Usando configuración CLIENT_DEV_MODE=$CLIENT_DEV_MODE"
+  if [[ "$CLIENT_DEV_MODE" =~ ^(true|yes|y|s|si|1)$ ]]; then
+    DEV_MODE="s"
+  else
+    DEV_MODE="n"
+  fi
+fi
 
 if [[ "$DEV_MODE" =~ ^[Ss]$ ]]; then
   echo "Construyendo cliente en modo desarrollo..."
@@ -52,25 +79,33 @@ if [[ "$DEV_MODE" =~ ^[Ss]$ ]] && ! podman volume ls | grep -q "client-node-modu
   podman volume create client-node-modules
 fi
 
-# Configurar variables
-POSTGRES_USER=agileuser
-POSTGRES_PASSWORD=agilepassword
-POSTGRES_DB=agiledb
-PGADMIN_EMAIL=admin@admin.com
-PGADMIN_PASSWORD=pgadminpwd
+# Configurar variables con valores por defecto si no están en .env
+: "${POSTGRES_USER:=agileuser}"
+: "${POSTGRES_PASSWORD:=agilepassword}"
+: "${POSTGRES_DB:=agiledb}"
+: "${PGADMIN_EMAIL:=admin@admin.com}"
+: "${PGADMIN_PASSWORD:=pgadminpwd}"
+: "${SECRET_KEY:=temporary_secret_key_change_this_in_production}"
+: "${LOAD_TEST_DATA:=true}"
 
-# Supabase - pedir URLs si se necesitan (o dejar vacías)
-echo "¿Deseas configurar Supabase para autenticación? (s/n)"
-read -r USE_SUPABASE
+# Supabase - usar valores de .env o preguntar si no existen
+if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+  echo "¿Deseas configurar Supabase para autenticación? (s/n)"
+  read -r USE_SUPABASE
 
-SUPABASE_URL=""
-SUPABASE_KEY=""
-
-if [[ "$USE_SUPABASE" =~ ^[Ss]$ ]]; then
-  echo "Ingresa la URL de Supabase:"
-  read -r SUPABASE_URL
-  echo "Ingresa la API Key de Supabase:"
-  read -r SUPABASE_KEY
+  if [[ "$USE_SUPABASE" =~ ^[Ss]$ ]]; then
+    if [ -z "$SUPABASE_URL" ]; then
+      echo "Ingresa la URL de Supabase:"
+      read -r SUPABASE_URL
+    fi
+    
+    if [ -z "$SUPABASE_KEY" ]; then
+      echo "Ingresa la API Key de Supabase:"
+      read -r SUPABASE_KEY
+    fi
+  fi
+else
+  echo "Usando configuración Supabase desde archivo .env"
 fi
 
 # Iniciar contenedores
@@ -101,11 +136,11 @@ podman run -d --name pgadmin \
 echo "Iniciando servidor..."
 podman run -d --name server \
   --network agile-network \
-  -e DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB} \
-  -e SECRET_KEY=temporary_secret_key_change_this_in_production \
+  -e DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}} \
+  -e SECRET_KEY=${SECRET_KEY} \
   -e SUPABASE_URL=${SUPABASE_URL} \
   -e SUPABASE_KEY=${SUPABASE_KEY} \
-  -e LOAD_TEST_DATA=true \
+  -e LOAD_TEST_DATA=${LOAD_TEST_DATA} \
   -p 8000:8000 \
   server
 
@@ -116,6 +151,9 @@ if [[ "$DEV_MODE" =~ ^[Ss]$ ]]; then
     --network agile-network \
     -v "$(pwd)/apps/client:/app" \
     -v "client-node-modules:/app/node_modules" \
+    -e VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-$SUPABASE_URL} \
+    -e VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-$SUPABASE_KEY} \
+    -e VITE_API_URL=${VITE_API_URL:-http://localhost:8000} \
     -p 3000:3000 \
     client-dev
 else
