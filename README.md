@@ -52,6 +52,26 @@ Ejemplos:
 ./start-environment.sh --build --dev
 ```
 
+### Modos de ejecución
+
+#### Modo normal (producción): `./start-environment.sh`
+- Usa imágenes existentes sin reconstruirlas
+- El código del cliente se ejecuta desde dentro de la imagen Docker
+- No se montan volúmenes del host al contenedor
+- Los cambios en archivos locales no se reflejan hasta reconstruir la imagen
+- **Ventajas**: Inicio rápido, ideal para probar o ejecutar el sistema en producción
+- **Mejor para**: Demostraciones, pruebas finales o despliegue
+
+#### Modo desarrollo: `./start-environment.sh --build --dev`
+- Reconstruye todas las imágenes antes de iniciarlas
+- Monta directorios locales (`src/`, `public/`, `index.html`) dentro del contenedor
+- Permite desarrollo en tiempo real con hot-reloading
+- Los cambios en el código se reflejan inmediatamente sin reconstruir
+- **Ventajas**: Desarrollo ágil y fluido con feedback inmediato
+- **Mejor para**: Desarrollo activo, pruebas iterativas, depuración
+
+> **Recomendación**: Para desarrollo diario usa `--dev`. Cuando necesites probar el sistema completo en condiciones similares a producción, usa el modo normal.
+
 La aplicación estará disponible en:
 
 - **Frontend**: http://localhost:3000
