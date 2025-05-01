@@ -5,8 +5,8 @@ Sistema completo para la gestión de proyectos ágiles con metodologías moderna
 ## Requisitos previos
 
 - **Podman** (recomendado v4.0+)
-- Node.js 18+ (solo para desarrollo)
-- Python 3.11+ (solo para desarrollo)
+- Node.js 18+ (solo para desarrollo directo)
+- Python 3.11+ (solo para desarrollo directo)
 
 ## Estructura del proyecto
 
@@ -15,14 +15,12 @@ Sistema completo para la gestión de proyectos ágiles con metodologías moderna
 │   ├── client/          # Frontend con Preact
 │   └── server/          # Backend con FastAPI
 ├── infra/
-│   ├── podman/          # Configuración de contenedores
+│   ├── podman/          # Configuración adicional de contenedores
 │   └── scripts/         # Scripts de utilidad
-└── start-environment.sh # Script principal para ejecutar con Podman
+└── start-environment.sh # Script para ejecutar con Podman
 ```
 
 ## Inicio rápido
-
-La forma más sencilla de ejecutar la aplicación es usando el script `start-environment.sh`:
 
 ```bash
 # Dar permisos de ejecución al script
@@ -39,9 +37,6 @@ El script acepta las siguientes opciones:
 
 Ejemplos:
 ```bash
-# Iniciar normalmente
-./start-environment.sh
-
 # Reconstruir imágenes y luego iniciar
 ./start-environment.sh --build
 
@@ -52,9 +47,15 @@ Ejemplos:
 ./start-environment.sh --build --dev
 ```
 
-### Modos de ejecución
+## Modos de ejecución
 
-#### Modo normal (producción): `./start-environment.sh`
+### Modo normal (producción)
+
+```bash
+./start-environment.sh
+```
+
+Este modo:
 - Usa imágenes existentes sin reconstruirlas
 - El código del cliente se ejecuta desde dentro de la imagen Docker
 - No se montan volúmenes del host al contenedor
@@ -62,7 +63,13 @@ Ejemplos:
 - **Ventajas**: Inicio rápido, ideal para probar o ejecutar el sistema en producción
 - **Mejor para**: Demostraciones, pruebas finales o despliegue
 
-#### Modo desarrollo: `./start-environment.sh --build --dev`
+### Modo desarrollo
+
+```bash
+./start-environment.sh --build --dev
+```
+
+Este modo:
 - Reconstruye todas las imágenes antes de iniciarlas
 - Monta directorios locales (`src/`, `public/`, `index.html`) dentro del contenedor
 - Permite desarrollo en tiempo real con hot-reloading
@@ -70,7 +77,9 @@ Ejemplos:
 - **Ventajas**: Desarrollo ágil y fluido con feedback inmediato
 - **Mejor para**: Desarrollo activo, pruebas iterativas, depuración
 
-> **Recomendación**: Para desarrollo diario usa `--dev`. Cuando necesites probar el sistema completo en condiciones similares a producción, usa el modo normal.
+> **Recomendación**: Para desarrollo diario usa el modo desarrollo. Cuando necesites probar el sistema completo en condiciones similares a producción, usa el modo normal.
+
+## Acceso a la aplicación
 
 La aplicación estará disponible en:
 
@@ -79,7 +88,18 @@ La aplicación estará disponible en:
 - **API Docs**: http://localhost:8000/docs (documentación OpenAPI/Swagger)
 - **pgAdmin**: http://localhost:5050 (administración de la base de datos)
 
-> **Nota para usuarios de macOS/Windows**: En algunos casos, necesitarás usar la IP de la máquina virtual de Podman en lugar de localhost. El script te mostrará la URL correcta.
+### Credenciales de pgAdmin
+
+- **Email**: admin@example.com
+- **Password**: admin
+
+Para conectarse a la base de datos desde pgAdmin:
+- **Nombre**: agiledb (o cualquier nombre descriptivo)
+- **Host**: db
+- **Port**: 5432
+- **Database**: agiledb
+- **Username**: agileuser
+- **Password**: agilepassword
 
 ## Comandos útiles
 
@@ -89,10 +109,8 @@ La aplicación estará disponible en:
 # Ver contenedores en ejecución
 podman ps
 
-# Detener todos los servicios
+# Detener todos los servicios manualmente
 podman stop client server db pgadmin
-
-# Eliminar todos los contenedores
 podman rm client server db pgadmin
 ```
 
@@ -111,44 +129,18 @@ podman exec -it server sh
 podman exec -it db bash
 ```
 
-### Construcción manual
-
-```bash
-# Construir imágenes individualmente
-podman build -t client ./apps/client
-podman build -t client-dev -f ./apps/client/Dockerfile.dev ./apps/client
-podman build -t server ./apps/server
-
-# Ejecutar contenedores individualmente
-podman run -d --name server -p 8000:8000 server
-podman run -d --name client -p 3000:3000 client
-```
-
 ## Configuración
 
 El sistema utiliza varias variables de entorno que pueden configurarse:
 
-### Variables para el servidor
+### Para el servidor
 
 - `DATABASE_URL`: URL de conexión a PostgreSQL
 - `SECRET_KEY`: Clave secreta para seguridad
-- `SUPABASE_URL`: URL de tu proyecto Supabase
-- `SUPABASE_KEY`: Clave API de Supabase
 - `LOAD_TEST_DATA`: Si se cargan datos de prueba en la BD ("true"/"false")
 
-### Archivos de entorno (.env)
+### Para el cliente
 
-Se recomienda crear manualmente los archivos `.env` en los directorios `/apps/server` y `/apps/client` siguiendo la estructura de los archivos `.env.example`. Esto asegura que no se sobrescriban configuraciones personalizadas.
-
-Para generar una clave secreta segura para `SECRET_KEY`, puedes usar:
-```bash
-openssl rand -hex 32
-```
-
-### Variables para el cliente
-
-- `VITE_SUPABASE_URL`: URL de tu proyecto Supabase
-- `VITE_SUPABASE_ANON_KEY`: Clave anónima de API de Supabase
 - `VITE_API_URL`: URL base del API backend (por defecto http://localhost:8000)
 
 ## Desarrollo
@@ -156,12 +148,12 @@ openssl rand -hex 32
 ### Backend (FastAPI)
 
 El backend está construido con FastAPI y SQLModel:
-- API RESTful con autenticación JWT o Supabase
+- API RESTful con autenticación JWT
 - Documentación automática con Swagger/OpenAPI
 - Conexión a PostgreSQL mediante SQLModel
 - Modelos de datos unificados (ORM + validación)
 
-Para desarrollo local del backend:
+Para desarrollo local del backend (sin contenedores):
 
 ```bash
 cd apps/server
@@ -173,7 +165,7 @@ uvicorn app.main:app --reload
 
 El frontend está construido con Preact y se comunica con el backend mediante API REST.
 
-Para desarrollo local del frontend:
+Para desarrollo local del frontend (sin contenedores):
 
 ```bash
 cd apps/client
@@ -191,17 +183,8 @@ El sistema utiliza PostgreSQL como base de datos y proporciona:
 
 Para acceder a pgAdmin:
 1. Abre http://localhost:5050 en tu navegador
-2. Usa las credenciales proporcionadas por el script
-3. Crea una nueva conexión al servidor usando la información mostrada
-
-## Integración con Supabase
-
-El sistema está preparado para utilizar Supabase como sistema de autenticación:
-
-1. Crea un proyecto en [Supabase](https://supabase.com)
-2. Habilita la autenticación con email/password u OAuth
-3. Obtén la URL y API Key de tu proyecto
-4. Proporciona estos datos al ejecutar `podman-run.sh`
+2. Inicia sesión con las credenciales mencionadas anteriormente
+3. Conecta a la base de datos usando los parámetros indicados en la sección de credenciales
 
 ## Solución de problemas comunes
 

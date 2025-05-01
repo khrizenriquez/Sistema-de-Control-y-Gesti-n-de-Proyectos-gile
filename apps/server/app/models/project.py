@@ -1,8 +1,13 @@
 from __future__ import annotations
 from sqlmodel import Field, SQLModel, Relationship
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
+
+# Usar TYPE_CHECKING para evitar importaciones circulares
+if TYPE_CHECKING:
+    from app.models.user import UserProfile
+    from app.models.agile import Sprint, UserStory, Board
+
 from app.models.base import BaseModel
-from app.models.user import UserProfile
 
 class Project(BaseModel, table=True):
     """Proyecto ágil"""
@@ -12,12 +17,12 @@ class Project(BaseModel, table=True):
     description: Optional[str] = None
     owner_id: str = Field(foreign_key="user_profiles.id")
     
-    # Relaciones (sin anotaciones de tipo para evitar problemas con Python 3.11)
-    owner: UserProfile = Relationship(back_populates="owned_projects")
-    members: Optional[List["ProjectMember"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
-    sprints: Optional[List["Sprint"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
-    user_stories: Optional[List["UserStory"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
-    boards: Optional[List["Board"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
+    # Relaciones con anotaciones de tipo mejoradas
+    owner: "UserProfile" = Relationship(back_populates="owned_projects")
+    members: list["ProjectMember"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
+    sprints: list["Sprint"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
+    user_stories: list["UserStory"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
+    boards: list["Board"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
 
 class ProjectMember(SQLModel, table=True):
     """Miembro de un proyecto"""
@@ -29,4 +34,4 @@ class ProjectMember(SQLModel, table=True):
     
     # Relaciones
     project: Project = Relationship(back_populates="members")
-    user: UserProfile = Relationship(back_populates="memberships") 
+    user: "UserProfile" = Relationship(back_populates="memberships") 

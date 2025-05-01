@@ -1,10 +1,14 @@
 from __future__ import annotations
 from sqlmodel import Field, SQLModel, Relationship
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from datetime import datetime
+
+# Usar TYPE_CHECKING para evitar importaciones circulares
+if TYPE_CHECKING:
+    from app.models.project import Project
+    from app.models.user import UserProfile
+
 from app.models.base import BaseModel
-from app.models.project import Project
-from app.models.user import UserProfile
 
 class UserStory(BaseModel, table=True):
     """Historia de usuario"""
@@ -18,9 +22,9 @@ class UserStory(BaseModel, table=True):
     story_points: Optional[int] = None
     
     # Relaciones
-    project: Project = Relationship(back_populates="user_stories")
-    tasks: Optional[List["Task"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story")
-    sprint_backlog_items: Optional[List["SprintBacklogItem"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story")
+    project: "Project" = Relationship(back_populates="user_stories")
+    tasks: list["Task"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story", default=[])
+    sprint_backlog_items: list["SprintBacklogItem"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story", default=[])
 
 class Sprint(BaseModel, table=True):
     """Sprint"""
@@ -34,9 +38,9 @@ class Sprint(BaseModel, table=True):
     status: str = "planning"  # planning, active, completed, cancelled
     
     # Relaciones
-    project: Project = Relationship(back_populates="sprints")
-    backlog_items: Optional[List["SprintBacklogItem"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint")
-    metrics: Optional[List["SprintMetric"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint")
+    project: "Project" = Relationship(back_populates="sprints")
+    backlog_items: list["SprintBacklogItem"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint", default=[])
+    metrics: list["SprintMetric"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint", default=[])
 
 class SprintBacklogItem(SQLModel, table=True):
     """Elemento del backlog de sprint"""
@@ -71,8 +75,8 @@ class Board(BaseModel, table=True):
     project_id: str = Field(foreign_key="projects.id")
     
     # Relaciones
-    project: Project = Relationship(back_populates="boards")
-    lists: Optional[List["List"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="board")
+    project: "Project" = Relationship(back_populates="boards")
+    lists: list["List"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="board", default=[])
 
 class List(BaseModel, table=True):
     """Lista en un tablero Kanban"""
@@ -84,7 +88,7 @@ class List(BaseModel, table=True):
     
     # Relaciones
     board: Board = Relationship(back_populates="lists")
-    cards: Optional[List["Card"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="list")
+    cards: list["Card"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="list", default=[])
 
 class Card(BaseModel, table=True):
     """Tarjeta en una lista Kanban"""
@@ -98,9 +102,9 @@ class Card(BaseModel, table=True):
     
     # Relaciones
     list: List = Relationship(back_populates="cards")
-    tasks: Optional[List["Task"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
-    comments: Optional[List["Comment"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
-    labels: Optional[List["CardLabel"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
+    tasks: list["Task"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card", default=[])
+    comments: list["Comment"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card", default=[])
+    labels: list["CardLabel"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card", default=[])
 
 class Task(BaseModel, table=True):
     """Tarea"""
@@ -117,7 +121,7 @@ class Task(BaseModel, table=True):
     # Relaciones
     story: Optional[UserStory] = Relationship(back_populates="tasks")
     card: Optional[Card] = Relationship(back_populates="tasks")
-    assignee: Optional[UserProfile] = Relationship()
+    assignee: Optional["UserProfile"] = Relationship()
 
 class Comment(BaseModel, table=True):
     """Comentario en una tarjeta"""
@@ -129,7 +133,7 @@ class Comment(BaseModel, table=True):
     
     # Relaciones
     card: Card = Relationship(back_populates="comments")
-    user: UserProfile = Relationship()
+    user: "UserProfile" = Relationship()
 
 class Label(BaseModel, table=True):
     """Etiqueta"""
@@ -140,8 +144,8 @@ class Label(BaseModel, table=True):
     project_id: str = Field(foreign_key="projects.id")
     
     # Relaciones
-    project: Project = Relationship()
-    card_labels: Optional[List["CardLabel"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="label")
+    project: "Project" = Relationship()
+    card_labels: list["CardLabel"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="label", default=[])
 
 class CardLabel(SQLModel, table=True):
     """Relación entre tarjeta y etiqueta"""
