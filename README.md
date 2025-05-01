@@ -92,7 +92,7 @@ La aplicación estará disponible en:
 
 Al ejecutar el proyecto con éxito, deberías ver los siguientes contenedores en ejecución:
 
-![Contenedores del proyecto](contenedores-proyecto.png)
+![Contenedores del proyecto](https://github.com/user-attachments/assets/caebe691-ad39-4724-8368-d6db63bb240c)
 
 Como se muestra en la imagen, el sistema se compone de 4 contenedores principales:
 - **client**: Frontend en Preact (puerto 3000)
