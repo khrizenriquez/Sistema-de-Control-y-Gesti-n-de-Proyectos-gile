@@ -25,15 +25,23 @@ Sistema completo para la gestión de proyectos ágiles con metodologías moderna
 La forma más sencilla de ejecutar la aplicación es usando el script `podman-run.sh`:
 
 ```bash
+# Dar permisos de ejecución al script
+chmod +x ./podman-run.sh
+
 # Iniciar todos los servicios (frontend, backend, base de datos)
 ./podman-run.sh
 ```
+
+Durante la ejecución del script, podrás elegir:
+- Ejecutar el cliente en modo desarrollo o producción
+- Configurar la integración con Supabase para autenticación
 
 La aplicación estará disponible en:
 
 - **Frontend**: http://localhost:3000
 - **Backend**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs (documentación OpenAPI/Swagger)
+- **pgAdmin**: http://localhost:5050 (administración de la base de datos)
 
 > **Nota para usuarios de macOS/Windows**: En algunos casos, necesitarás usar la IP de la máquina virtual de Podman en lugar de localhost. El script te mostrará la URL correcta.
 
@@ -46,10 +54,10 @@ La aplicación estará disponible en:
 podman ps
 
 # Detener todos los servicios
-podman stop client server db
+podman stop client server db pgadmin
 
 # Eliminar todos los contenedores
-podman rm client server db
+podman rm client server db pgadmin
 ```
 
 ### Logs y depuración
@@ -59,6 +67,7 @@ podman rm client server db
 podman logs client
 podman logs server
 podman logs db
+podman logs pgadmin
 
 # Acceso a shell dentro de los contenedores
 podman exec -it client sh
@@ -71,6 +80,7 @@ podman exec -it db bash
 ```bash
 # Construir imágenes individualmente
 podman build -t client ./apps/client
+podman build -t client-dev -f ./apps/client/Dockerfile.dev ./apps/client
 podman build -t server ./apps/server
 
 # Ejecutar contenedores individualmente
@@ -80,22 +90,40 @@ podman run -d --name client -p 3000:3000 client
 
 ## Configuración
 
-1. Crea un archivo `.env` en el directorio `infra/podman/` basado en el archivo `.env.example`:
+El sistema utiliza varias variables de entorno que pueden configurarse:
 
+### Variables para el servidor
+
+- `DATABASE_URL`: URL de conexión a PostgreSQL
+- `SECRET_KEY`: Clave secreta para seguridad
+- `SUPABASE_URL`: URL de tu proyecto Supabase
+- `SUPABASE_KEY`: Clave API de Supabase
+- `LOAD_TEST_DATA`: Si se cargan datos de prueba en la BD ("true"/"false")
+
+### Archivos de entorno (.env)
+
+Se recomienda crear manualmente los archivos `.env` en los directorios `/apps/server` y `/apps/client` siguiendo la estructura de los archivos `.env.example`. Esto asegura que no se sobrescriban configuraciones personalizadas.
+
+Para generar una clave secreta segura para `SECRET_KEY`, puedes usar:
 ```bash
-cp infra/podman/.env.example infra/podman/.env
+openssl rand -hex 32
 ```
 
-2. Edita el archivo `.env` para configurar variables de entorno como contraseñas y claves secretas.
+### Variables para el cliente
+
+- `VITE_SUPABASE_URL`: URL de tu proyecto Supabase
+- `VITE_SUPABASE_ANON_KEY`: Clave anónima de API de Supabase
+- `VITE_API_URL`: URL base del API backend (por defecto http://localhost:8000)
 
 ## Desarrollo
 
 ### Backend (FastAPI)
 
-El backend está construido con FastAPI y expone:
-- API RESTful con autenticación JWT
+El backend está construido con FastAPI y SQLModel:
+- API RESTful con autenticación JWT o Supabase
 - Documentación automática con Swagger/OpenAPI
-- Conexión a PostgreSQL mediante SQLAlchemy
+- Conexión a PostgreSQL mediante SQLModel
+- Modelos de datos unificados (ORM + validación)
 
 Para desarrollo local del backend:
 
@@ -116,6 +144,28 @@ cd apps/client
 npm install
 npm run dev
 ```
+
+### Base de datos
+
+El sistema utiliza PostgreSQL como base de datos y proporciona:
+- pgAdmin para administración visual
+- Modelos SQLModel para gestión de datos
+- Inicialización automática de esquema
+- Datos de prueba para desarrollo
+
+Para acceder a pgAdmin:
+1. Abre http://localhost:5050 en tu navegador
+2. Usa las credenciales proporcionadas por el script
+3. Crea una nueva conexión al servidor usando la información mostrada
+
+## Integración con Supabase
+
+El sistema está preparado para utilizar Supabase como sistema de autenticación:
+
+1. Crea un proyecto en [Supabase](https://supabase.com)
+2. Habilita la autenticación con email/password u OAuth
+3. Obtén la URL y API Key de tu proyecto
+4. Proporciona estos datos al ejecutar `podman-run.sh`
 
 ## Solución de problemas comunes
 
