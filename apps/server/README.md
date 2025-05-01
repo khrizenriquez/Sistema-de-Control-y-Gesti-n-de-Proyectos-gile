@@ -53,7 +53,20 @@ python scripts/migrate.py --downgrade -1
 
 ### Datos de prueba
 
-El sistema carga datos de prueba automáticamente si la variable `LOAD_TEST_DATA=true`. Estos datos solo se cargan si la base de datos está vacía.
+El sistema carga datos de prueba automáticamente al iniciar. Estos datos solo se cargan si la base de datos está vacía.
+
+#### Usuarios de prueba
+
+El seed crea los siguientes usuarios por rol para pruebas:
+
+| Rol             | Email               | Auth ID             | Nombre            |
+|-----------------|---------------------|---------------------|-------------------|
+| admin           | admin@example.com   | supabase-auth-id-1  | Admin Usuario     |
+| developer       | dev@example.com     | supabase-auth-id-2  | Desarrollador Ejemplo |
+| product_owner   | pm@example.com      | supabase-auth-id-3  | Project Manager   |
+| member          | member@example.com  | supabase-auth-id-4  | Miembro Regular   |
+
+Todos estos usuarios se crean con IDs de autenticación simulados que deben ser reemplazados por IDs reales si se usa Supabase para autenticación.
 
 ## Autenticación con Supabase
 

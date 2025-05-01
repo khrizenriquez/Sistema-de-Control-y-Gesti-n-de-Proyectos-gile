@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sqlmodel import Field, SQLModel, Relationship
 from typing import Optional, List
 from app.models.base import BaseModel
@@ -13,6 +14,6 @@ class UserProfile(BaseModel, table=True):
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     
-    # Relaciones
-    owned_projects: List["Project"] = Relationship(back_populates="owner")
-    memberships: List["ProjectMember"] = Relationship(back_populates="user") 
+    # Relaciones (sin anotaciones de tipo para evitar problemas con Python 3.11)
+    owned_projects: Optional[List["Project"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="owner")
+    memberships: Optional[List["ProjectMember"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="user") 

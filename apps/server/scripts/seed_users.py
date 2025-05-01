@@ -1,60 +1,3 @@
-#!/bin/bash
-set -e
-
-# Función para esperar a que PostgreSQL esté disponible
-wait_for_postgres() {
-    echo "Esperando a que PostgreSQL esté disponible..."
-    until PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c '\q'; do
-        echo "PostgreSQL no disponible aún - esperando..."
-        sleep 2
-    done
-    echo "PostgreSQL está disponible. Continuando..."
-}
-
-# Extraer variables de entorno desde DATABASE_URL
-if [[ -n "$DATABASE_URL" ]]; then
-    # Formato esperado: postgresql+asyncpg://user:password@host:port/dbname
-    # Extraer usuario
-    POSTGRES_USER=$(echo $DATABASE_URL | sed -e 's|^.*://||' -e 's|:.*$||')
-    
-    # Extraer contraseña (entre ":" y "@")
-    POSTGRES_PASSWORD=$(echo $DATABASE_URL | sed -e 's|^.*://[^:]*:||' -e 's|@.*$||')
-    
-    # Extraer host
-    POSTGRES_HOST=$(echo $DATABASE_URL | sed -e 's|^.*@||' -e 's|:.*$||')
-    
-    # Extraer puerto
-    POSTGRES_PORT=$(echo $DATABASE_URL | sed -e 's|^.*:||' -e 's|/.*$||')
-    
-    # Extraer nombre de base de datos
-    POSTGRES_DB=$(echo $DATABASE_URL | sed -e 's|^.*/||' -e 's|\?.*$||')
-    
-    export POSTGRES_USER
-    export POSTGRES_PASSWORD
-    export POSTGRES_HOST
-    export POSTGRES_PORT
-    export POSTGRES_DB
-    
-    # Debug
-    echo "Extracted DB settings:"
-    echo "User: $POSTGRES_USER"
-    echo "Password: $POSTGRES_PASSWORD"
-    echo "Host: $POSTGRES_HOST"
-    echo "Port: $POSTGRES_PORT"
-    echo "Database: $POSTGRES_DB"
-fi
-
-# Esperar a que PostgreSQL esté disponible
-if [[ -n "$POSTGRES_HOST" && -n "$POSTGRES_USER" && -n "$POSTGRES_PASSWORD" && -n "$POSTGRES_DB" ]]; then
-    wait_for_postgres
-fi
-
-# Crear tablas
-echo "Creando tablas en la base de datos..."
-python -c "from app.database.create_tables import create_tables; create_tables()"
-
-# Crear script de usuarios de prueba
-cat > /app/seed_users.py << 'EOF'
 #!/usr/bin/env python3
 
 """
@@ -71,7 +14,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 # Obtener configuración desde variables de entorno
 db_config = {
     "host": os.environ.get("POSTGRES_HOST", "db"),
-    "port": os.environ.get("POSTGRES_PORT", "5432"), 
+    "port": os.environ.get("POSTGRES_PORT", "5432"),
     "database": os.environ.get("POSTGRES_DB", "agiledb"),
     "user": os.environ.get("POSTGRES_USER", "agileuser"),
     "password": os.environ.get("POSTGRES_PASSWORD", "agilepassword")
@@ -214,13 +157,4 @@ def create_test_users():
             conn.close()
 
 if __name__ == "__main__":
-    create_test_users()
-EOF
-
-# Ejecutar script de usuarios de prueba
-echo "Creando datos de prueba (usuarios por roles)..."
-python /app/seed_users.py
-
-# Iniciar la aplicación
-echo "Iniciando la aplicación..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000 
+    create_test_users() 

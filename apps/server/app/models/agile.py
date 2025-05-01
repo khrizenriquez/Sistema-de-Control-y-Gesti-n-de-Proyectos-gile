@@ -1,6 +1,6 @@
+from __future__ import annotations
 from sqlmodel import Field, SQLModel, Relationship
-from typing import Optional, Dict, Any
-from typing_extensions import List  # Usar typing_extensions para Python 3.8+
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from app.models.base import BaseModel
 from app.models.project import Project
@@ -19,8 +19,8 @@ class UserStory(BaseModel, table=True):
     
     # Relaciones
     project: Project = Relationship(back_populates="user_stories")
-    tasks: List["Task"] = Relationship(back_populates="story")
-    sprint_backlog_items: List["SprintBacklogItem"] = Relationship(back_populates="story")
+    tasks: Optional[List["Task"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story")
+    sprint_backlog_items: Optional[List["SprintBacklogItem"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story")
 
 class Sprint(BaseModel, table=True):
     """Sprint"""
@@ -35,8 +35,8 @@ class Sprint(BaseModel, table=True):
     
     # Relaciones
     project: Project = Relationship(back_populates="sprints")
-    backlog_items: List["SprintBacklogItem"] = Relationship(back_populates="sprint")
-    metrics: List["SprintMetric"] = Relationship(back_populates="sprint")
+    backlog_items: Optional[List["SprintBacklogItem"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint")
+    metrics: Optional[List["SprintMetric"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint")
 
 class SprintBacklogItem(SQLModel, table=True):
     """Elemento del backlog de sprint"""
@@ -72,7 +72,7 @@ class Board(BaseModel, table=True):
     
     # Relaciones
     project: Project = Relationship(back_populates="boards")
-    lists: List["List"] = Relationship(back_populates="board")
+    lists: Optional[List["List"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="board")
 
 class List(BaseModel, table=True):
     """Lista en un tablero Kanban"""
@@ -84,7 +84,7 @@ class List(BaseModel, table=True):
     
     # Relaciones
     board: Board = Relationship(back_populates="lists")
-    cards: List["Card"] = Relationship(back_populates="list")
+    cards: Optional[List["Card"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="list")
 
 class Card(BaseModel, table=True):
     """Tarjeta en una lista Kanban"""
@@ -98,9 +98,9 @@ class Card(BaseModel, table=True):
     
     # Relaciones
     list: List = Relationship(back_populates="cards")
-    tasks: List["Task"] = Relationship(back_populates="card")
-    comments: List["Comment"] = Relationship(back_populates="card")
-    labels: List["CardLabel"] = Relationship(back_populates="card")
+    tasks: Optional[List["Task"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
+    comments: Optional[List["Comment"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
+    labels: Optional[List["CardLabel"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
 
 class Task(BaseModel, table=True):
     """Tarea"""
@@ -141,7 +141,7 @@ class Label(BaseModel, table=True):
     
     # Relaciones
     project: Project = Relationship()
-    card_labels: List["CardLabel"] = Relationship(back_populates="label")
+    card_labels: Optional[List["CardLabel"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="label")
 
 class CardLabel(SQLModel, table=True):
     """Relación entre tarjeta y etiqueta"""

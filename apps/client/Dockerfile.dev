@@ -9,7 +9,8 @@ RUN pnpm install
 
 # No copiamos el código fuente, lo montaremos como volumen
 
-EXPOSE 3000
+# Expose 5173 for Vite dev server (default port)
+EXPOSE 5173
 
 # Comando para iniciar el servidor de desarrollo
 CMD ["pnpm", "run", "dev", "--host", "0.0.0.0"] 

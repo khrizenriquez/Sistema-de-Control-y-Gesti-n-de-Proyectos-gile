@@ -154,7 +154,7 @@ if [[ "$DEV_MODE" =~ ^[Ss]$ ]]; then
     -e VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-$SUPABASE_URL} \
     -e VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-$SUPABASE_KEY} \
     -e VITE_API_URL=${VITE_API_URL:-http://localhost:8000} \
-    -p 3000:3000 \
+    -p 3000:5173 \
     client-dev
 else
   echo "Iniciando cliente en modo producción..."

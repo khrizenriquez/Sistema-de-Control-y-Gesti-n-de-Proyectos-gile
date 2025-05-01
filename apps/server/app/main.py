@@ -54,14 +54,19 @@ async def on_startup():
         create_db_and_tables()
     
     # Cargar datos de prueba si está habilitado
-    if settings.LOAD_TEST_DATA and settings.LOAD_TEST_DATA.lower() == "true":
+    load_test_data = getattr(settings, "LOAD_TEST_DATA", "false")
+    if load_test_data and str(load_test_data).lower() == "true":
         logger.info("Cargando datos de prueba...")
-        from app.database.seed import seed_data
-        success = await seed_data()
-        if success:
-            logger.info("Datos de prueba cargados exitosamente")
-        else:
-            logger.info("No se cargaron datos de prueba (posiblemente ya existan)")
+        try:
+            from app.database.seed import seed_data
+            success = await seed_data()
+            if success:
+                logger.info("Datos de prueba cargados exitosamente")
+            else:
+                logger.info("No se cargaron datos de prueba (posiblemente ya existan)")
+        except Exception as e:
+            logger.error(f"Error cargando datos de prueba: {str(e)}")
+            logger.info("Continuando sin datos de prueba")
 
 @app.get("/")
 async def root():

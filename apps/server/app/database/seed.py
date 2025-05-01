@@ -57,9 +57,17 @@ def create_test_data():
             email="pm@example.com"
         )
         
+        member = UserProfile(
+            auth_id="supabase-auth-id-4",  # ID ficticio
+            first_name="Miembro",
+            last_name="Regular",
+            email="member@example.com"
+        )
+        
         session.add(admin)
         session.add(developer)
         session.add(pm)
+        session.add(member)
         session.commit()
         
         # Crear proyecto
@@ -75,10 +83,12 @@ def create_test_data():
         admin_member = ProjectMember(project_id=project.id, user_id=admin.id, role="admin")
         dev_member = ProjectMember(project_id=project.id, user_id=developer.id, role="developer")
         pm_member = ProjectMember(project_id=project.id, user_id=pm.id, role="product_owner")
+        regular_member = ProjectMember(project_id=project.id, user_id=member.id, role="member")
         
         session.add(admin_member)
         session.add(dev_member)
         session.add(pm_member)
+        session.add(regular_member)
         session.commit()
         
         # Crear historias de usuario

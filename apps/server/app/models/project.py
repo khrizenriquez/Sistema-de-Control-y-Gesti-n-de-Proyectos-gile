@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sqlmodel import Field, SQLModel, Relationship
 from typing import Optional, List
 from app.models.base import BaseModel
@@ -11,12 +12,12 @@ class Project(BaseModel, table=True):
     description: Optional[str] = None
     owner_id: str = Field(foreign_key="user_profiles.id")
     
-    # Relaciones
+    # Relaciones (sin anotaciones de tipo para evitar problemas con Python 3.11)
     owner: UserProfile = Relationship(back_populates="owned_projects")
-    members: List["ProjectMember"] = Relationship(back_populates="project")
-    sprints: List["Sprint"] = Relationship(back_populates="project")
-    user_stories: List["UserStory"] = Relationship(back_populates="project")
-    boards: List["Board"] = Relationship(back_populates="project")
+    members: Optional[List["ProjectMember"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
+    sprints: Optional[List["Sprint"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
+    user_stories: Optional[List["UserStory"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
+    boards: Optional[List["Board"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
 
 class ProjectMember(SQLModel, table=True):
     """Miembro de un proyecto"""
