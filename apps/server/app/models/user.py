@@ -1,7 +1,11 @@
 from __future__ import annotations
 from sqlmodel import Field, SQLModel, Relationship
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from app.models.base import BaseModel
+
+# Usar TYPE_CHECKING para evitar importaciones circulares
+if TYPE_CHECKING:
+    from app.models.project import Project, ProjectMember
 
 class UserProfile(BaseModel, table=True):
     """Perfil de usuario vinculado a Supabase Auth"""
@@ -14,6 +18,6 @@ class UserProfile(BaseModel, table=True):
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     
-    # Relaciones (sin anotaciones de tipo para evitar problemas con Python 3.11)
-    owned_projects: Optional[List["Project"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="owner")
-    memberships: Optional[List["ProjectMember"]] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="user") 
+    # Relaciones
+    owned_projects: list["Project"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="owner", default=[])
+    memberships: list["ProjectMember"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="user", default=[]) 

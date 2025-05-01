@@ -7,7 +7,13 @@ RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml tsconfig*.json vite.config.* tailwind.config.js postcss.config.js ./
 RUN pnpm install
 
-# No copiamos el código fuente, lo montaremos como volumen
+# Copiamos los archivos fuente (se pueden sobrescribir con volúmenes en desarrollo)
+COPY src/ ./src/
+COPY public/ ./public/
+COPY index.html ./
+
+# Variable de entorno para determinar si estamos en modo desarrollo
+ENV NODE_ENV=development
 
 # Expose 5173 for Vite dev server (default port)
 EXPOSE 5173
