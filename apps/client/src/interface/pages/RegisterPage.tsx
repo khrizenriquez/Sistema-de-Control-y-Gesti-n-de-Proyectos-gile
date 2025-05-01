@@ -1,40 +1,57 @@
 import { FunctionComponent } from 'preact';
-import { useState } from 'preact/hooks';
-import { registerUser } from '../../application/use-cases/registerUser';
+import { useState, useEffect } from 'preact/hooks';
 import { User } from '../../domain/entities/User';
-import { Link } from 'wouter-preact';
+import { Link, useLocation } from 'wouter-preact';
+import { useAuth } from '../../context/AuthContext';
 
 export const RegisterPage: FunctionComponent = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [, setLocation] = useLocation();
+  
+  const { register, loading, user } = useAuth();
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      setLocation('/dashboard');
+    }
+  }, [user, setLocation]);
 
   const handleRegister = async (e: Event) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
-    setLoading(true);
+
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
 
     try {
-      const user: User = {
+      const userData: User = {
         id: '', // Este campo se generará en el backend
         email,
         password,
         name
       };
-      const result = await registerUser(user);
+      
+      const result = await register(userData);
+      
       if (result.success) {
         setSuccess(true);
+        // Redirigir después de un breve retraso para que el usuario vea el mensaje de éxito
+        setTimeout(() => {
+          setLocation('/login');
+        }, 2000);
       } else {
-        setError('Error al registrarse');
+        setError(result.error || 'Error al registrarse');
       }
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -95,12 +112,13 @@ export const RegisterPage: FunctionComponent = () => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-md"
                 value={password}
                 onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
-                placeholder="Contraseña"
+                placeholder="Contraseña (mínimo 6 caracteres)"
                 required
+                minLength={6}
               />
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-            {success && <p className="text-green-500 text-sm mb-4">¡Registro exitoso!</p>}
+            {success && <p className="text-green-500 text-sm mb-4">¡Registro exitoso! Redirigiendo al login...</p>}
             <button
               type="submit"
               disabled={loading}
@@ -110,7 +128,7 @@ export const RegisterPage: FunctionComponent = () => {
             </button>
             
             <p className="mt-8 text-center text-sm">
-              ¿Ya tienes cuenta? <Link href="/" className="text-blue-500 hover:underline">Inicia sesión aquí</Link>
+              ¿Ya tienes cuenta? <Link href="/login" className="text-blue-500 hover:underline">Inicia sesión aquí</Link>
             </p>
           </form>
         </div>

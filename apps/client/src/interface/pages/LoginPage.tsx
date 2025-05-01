@@ -1,32 +1,36 @@
 import { FunctionComponent } from 'preact';
-import { useState } from 'preact/hooks';
-import { loginUser } from '../../application/use-cases/loginUser';
-import { Link } from 'wouter-preact';
+import { useState, useEffect } from 'preact/hooks';
+import { Link, useLocation } from 'wouter-preact';
+import { useAuth } from '../../context/AuthContext';
 
 export const LoginPage: FunctionComponent = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [, setLocation] = useLocation();
+  
+  const { login, loading, user } = useAuth();
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      setLocation('/dashboard');
+    }
+  }, [user, setLocation]);
 
   const handleLogin = async (e: Event) => {
     e.preventDefault();
     setError('');
-    setSuccess(false);
-    setLoading(true);
 
     try {
-      const result = await loginUser({ email, password });
+      const result = await login(email, password);
       if (result.success) {
-        setSuccess(true);
+        setLocation('/dashboard');
       } else {
-        setError('Login fallido');
+        setError(result.error || 'Error al iniciar sesión');
       }
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -71,7 +75,6 @@ export const LoginPage: FunctionComponent = () => {
               />
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-            {success && <p className="text-green-500 text-sm mb-4">¡Login exitoso!</p>}
             <button
               type="submit"
               disabled={loading}

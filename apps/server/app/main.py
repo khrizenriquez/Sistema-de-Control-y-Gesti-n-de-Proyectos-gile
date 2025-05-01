@@ -76,10 +76,11 @@ async def root():
 async def health_check():
     return {"status": "healthy", "version": settings.PROJECT_VERSION}
 
-# Aquí se importarán los routers posteriormente
-# from app.routers import projects, users, tasks
+# Importar routers
+from app.routers import users
+# from app.routers import projects, tasks
 
-# Y se incluirán en la aplicación
-# app.include_router(users.router, prefix=settings.API_PREFIX)
+# Incluir routers en la aplicación
+app.include_router(users.router, prefix=settings.API_PREFIX)
 # app.include_router(projects.router, prefix=settings.API_PREFIX)
 # app.include_router(tasks.router, prefix=settings.API_PREFIX) 

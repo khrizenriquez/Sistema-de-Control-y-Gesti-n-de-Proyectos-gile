@@ -61,12 +61,25 @@ El seed crea los siguientes usuarios por rol para pruebas:
 
 | Rol             | Email               | Auth ID             | Nombre            |
 |-----------------|---------------------|---------------------|-------------------|
-| admin           | admin@example.com   | supabase-auth-id-1  | Admin Usuario     |
-| developer       | dev@example.com     | supabase-auth-id-2  | Desarrollador Ejemplo |
-| product_owner   | pm@example.com      | supabase-auth-id-3  | Project Manager   |
-| member          | member@example.com  | supabase-auth-id-4  | Miembro Regular   |
+| admin           | admin@ingsistemas.gt   | supabase-auth-id-1  | Admin Usuario     |
+| developer       | dev@ingsistemas.gt     | supabase-auth-id-2  | Desarrollador Ejemplo |
+| product_owner   | pm@ingsistemas.gt      | supabase-auth-id-3  | Project Manager   |
+| member          | member@ingsistemas.gt  | supabase-auth-id-4  | Miembro Regular   |
 
 Todos estos usuarios se crean con IDs de autenticación simulados que deben ser reemplazados por IDs reales si se usa Supabase para autenticación.
+
+#### Credenciales para Supabase
+
+Al crear estos usuarios en Supabase, utilice las siguientes contraseñas para cada rol:
+
+| Rol             | Email                 | Contraseña       |
+|-----------------|----------------------|------------------|
+| admin           | admin@ingsistemas.gt    | Admin2025!      |
+| developer       | dev@ingsistemas.gt      | Developer2025!  |
+| product_owner   | pm@ingsistemas.gt       | Manager2025!    |
+| member          | member@ingsistemas.gt   | Member2025!     |
+
+> **Nota**: Estas contraseñas son solo para entornos de desarrollo. En un entorno de producción, utilice contraseñas seguras y únicas.
 
 ## Autenticación con Supabase
 
