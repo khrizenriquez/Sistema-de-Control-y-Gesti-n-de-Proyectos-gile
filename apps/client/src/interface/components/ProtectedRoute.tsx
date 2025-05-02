@@ -1,8 +1,8 @@
 import { FunctionalComponent } from 'preact';
 import { Route, useLocation } from 'wouter-preact';
 import { useState, useEffect } from 'preact/hooks';
-import { isAuthenticated } from '../../infrastructure/services/supabase';
-import { LoginPage } from '../pages/LoginPage';
+import { isAuthenticated, getCurrentUser } from '../../infrastructure/services/supabase';
+import { FixLoginPage } from '../pages/FixLoginPage';
 
 interface ProtectedRouteProps {
   component: FunctionalComponent<any>;
@@ -15,23 +15,79 @@ export const ProtectedRoute: FunctionalComponent<ProtectedRouteProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [isAuth, setIsAuth] = useState(false);
+  const [retries, setRetries] = useState(0);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAuth = async () => {
-      setLoading(true);
-      const auth = await isAuthenticated();
-      setIsAuth(auth);
-      
-      if (!auth) {
-        setLocation('/login');
+      try {
+        setLoading(true);
+        
+        // Verificar autenticación y usuario
+        const auth = await isAuthenticated();
+        const user = await getCurrentUser();
+        
+        console.log('Estado de autenticación en ProtectedRoute:', {
+          isAuthenticated: auth,
+          hasUser: !!user,
+          userId: user?.id,
+          path: rest.path
+        });
+        
+        if (isMounted) {
+          setIsAuth(auth);
+          
+          if (!auth) {
+            console.log('Usuario no autenticado, redirigiendo a login...');
+            
+            // Intentar redirección a /login
+            try {
+              setLocation('/login');
+            } catch (e) {
+              console.error('Error al redirigir con router:', e);
+              
+              // Fallback a redirección directa
+              window.location.href = '/login';
+            }
+          }
+          
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error al verificar autenticación:', err);
+        
+        if (isMounted) {
+          // Si hay un error y aún no hemos intentado muchas veces, reintentamos
+          if (retries < 3) {
+            setRetries(prev => prev + 1);
+            setTimeout(checkAuth, 1000);
+          } else {
+            setIsAuth(false);
+            setLoading(false);
+            
+            // Redirigir después de múltiples intentos fallidos
+            setLocation('/login');
+          }
+        }
       }
-      
-      setLoading(false);
     };
     
     checkAuth();
-  }, [setLocation]);
+    
+    // Ejecutar verificación periódicamente mientras el componente esté montado
+    const interval = setInterval(() => {
+      if (loading && retries < 5) {
+        checkAuth();
+      }
+    }, 2000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [setLocation, retries, rest.path]);
 
   return (
     <Route
@@ -40,11 +96,16 @@ export const ProtectedRoute: FunctionalComponent<ProtectedRouteProps> = ({
         loading ? (
           <div className="flex items-center justify-center h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            {retries > 0 && (
+              <p className="ml-3 text-sm text-gray-600">
+                Verificando autenticación... ({retries}/3)
+              </p>
+            )}
           </div>
         ) : isAuth ? (
           <Component {...props} />
         ) : (
-          <LoginPage />
+          <FixLoginPage />
         )
       }
     />

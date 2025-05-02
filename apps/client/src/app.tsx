@@ -1,5 +1,6 @@
 import { Route, Switch } from 'wouter-preact';
 import { LoginPage } from './interface/pages/LoginPage';
+import { FixLoginPage } from './interface/pages/FixLoginPage';
 import { RegisterPage } from './interface/pages/RegisterPage';
 import { DashboardPage } from './interface/pages/DashboardPage';
 import { BoardPage } from './interface/pages/BoardPage';
@@ -15,6 +16,7 @@ import { Layout } from './interface/components/Layout';
 import { FunctionComponent } from 'preact';
 import { ProtectedRoute } from './interface/components/ProtectedRoute';
 import { EnvWarning } from './components/EnvWarning';
+import { DebugToast } from './components/DebugToast';
 import './style.css'
 
 // Componente para rutas que requieren autenticación y tienen el Layout
@@ -36,8 +38,9 @@ export function App() {
     <div className="min-h-screen">
       <Switch>
         {/* Rutas públicas sin Layout */}
-        <Route path="/" component={LoginPage} />
-        <Route path="/login" component={LoginPage} />
+        <Route path="/" component={FixLoginPage} />
+        <Route path="/login" component={FixLoginPage} />
+        <Route path="/original-login" component={LoginPage} />
         <Route path="/register" component={RegisterPage} />
         
         {/* Rutas protegidas con Layout */}
@@ -55,8 +58,9 @@ export function App() {
         <AuthRouteWithLayout path="/notifications" component={NotificationsPage} />
       </Switch>
       
-      {/* Advertencia sobre variables de entorno */}
+      {/* Componentes de utilidad */}
       <EnvWarning />
+      <DebugToast />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { createContext } from 'preact';
 import { useState, useEffect, useContext } from 'preact/hooks';
 import { User } from '../domain/entities/User';
-import { supabase, getCurrentUser, getCurrentSession } from '../infrastructure/services/supabase';
+import { supabase, getCurrentUser } from '../infrastructure/services/supabase';
 import { AuthApiAdapter } from '../infrastructure/adapters/AuthApiAdapter';
 
 interface AuthContextType {
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }: { children: any }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_, session) => {
         if (session?.user) {
           setUser({
             id: session.user.id,

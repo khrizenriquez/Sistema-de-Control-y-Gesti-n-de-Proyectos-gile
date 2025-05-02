@@ -4,10 +4,14 @@ import { supabase } from '../services/supabase';
 export class AuthApiAdapter {
   async login(email: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> {
     try {
+      console.log('Intentando login con Supabase para:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
+
+      console.log('Respuesta de Supabase:', { data: data ? 'Datos recibidos' : 'Sin datos', error });
 
       if (error) {
         console.error('Error de login:', error.message);
@@ -21,12 +25,15 @@ export class AuthApiAdapter {
           name: data.user.user_metadata?.name || ''
         };
         
+        console.log('Login exitoso para:', user.email);
+        
         // Guardar token en localStorage para uso posterior
         localStorage.setItem('authToken', data.session.access_token);
         
         return { success: true, user };
       }
 
+      console.log('No se pudo iniciar sesión: usuario o sesión no disponibles');
       return { success: false, error: 'No se pudo iniciar sesión' };
     } catch (err: any) {
       console.error('Error inesperado en login:', err.message);
