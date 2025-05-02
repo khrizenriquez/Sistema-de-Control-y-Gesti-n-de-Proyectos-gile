@@ -6,7 +6,8 @@ import { AuthProvider } from './context/AuthContext'
 
 // Importar los scripts que arreglan problemas
 import './fixes/fixLoginMessage'
-import './fixes/fixAuthentication' // Nuevo script para arreglar redirecciones
+import './fixes/fixAuthentication' // Script para arreglar redirecciones
+import './fixes/jwtDebugger' // Script para diagnosticar problemas JWT
 
 render(
   <ThemeProvider>

@@ -4,40 +4,57 @@ import { supabase } from '../services/supabase';
 export class AuthApiAdapter {
   async login(email: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> {
     try {
-      console.log('Intentando login con Supabase para:', email);
+      console.log('📝 AuthApiAdapter: Iniciando login con Supabase para:', email);
       
+      // Intentar autenticación con Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      console.log('Respuesta de Supabase:', { data: data ? 'Datos recibidos' : 'Sin datos', error });
+      // Logging detallado de la respuesta para diagnóstico
+      console.log('📌 Respuesta de Supabase:', { 
+        hasData: !!data, 
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
+        error: error ? error.message : null 
+      });
 
+      // Si hay un error explícito, reportarlo
       if (error) {
-        console.error('Error de login:', error.message);
+        console.error('❌ Error de Supabase:', error.message);
         return { success: false, error: error.message };
       }
 
-      if (data.user && data.session) {
-        const user: User = {
-          id: data.user.id,
-          email: data.user.email || '',
-          name: data.user.user_metadata?.name || ''
+      // Verificar si realmente tenemos datos de usuario y sesión
+      if (!data || !data.user || !data.session) {
+        console.error('❌ Datos incompletos: No se recibió usuario o sesión');
+        return { 
+          success: false, 
+          error: 'Credenciales incorrectas o problema con la autenticación'
         };
-        
-        console.log('Login exitoso para:', user.email);
-        
-        // Guardar token en localStorage para uso posterior
-        localStorage.setItem('authToken', data.session.access_token);
-        
-        return { success: true, user };
       }
 
-      console.log('No se pudo iniciar sesión: usuario o sesión no disponibles');
-      return { success: false, error: 'No se pudo iniciar sesión' };
+      // Autenticación exitosa, crear objeto de usuario
+      const user: User = {
+        id: data.user.id,
+        email: data.user.email || '',
+        name: data.user.user_metadata?.name || ''
+      };
+      
+      console.log('✅ Login exitoso para:', user.email);
+      
+      // Guardar token en localStorage para uso posterior
+      localStorage.setItem('authToken', data.session.access_token);
+      
+      // Log del token truncado para verificación (solo para diagnóstico)
+      const tokenPreview = data.session.access_token.substring(0, 15) + '...';
+      console.log('🔑 Token JWT guardado:', tokenPreview);
+      
+      return { success: true, user };
     } catch (err: any) {
-      console.error('Error inesperado en login:', err.message);
-      return { success: false, error: 'Error inesperado durante el login' };
+      console.error('❌ Error inesperado en login:', err.message);
+      return { success: false, error: 'Error inesperado durante el login: ' + err.message };
     }
   }
 
