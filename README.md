@@ -79,6 +79,10 @@ Este modo:
 
 > **Recomendación**: Para desarrollo diario usa el modo desarrollo. Cuando necesites probar el sistema completo en condiciones similares a producción, usa el modo normal.
 
+## Arquitectura de la aplicación
+
+![Arquitectura de la aplicación](https://github.com/user-attachments/assets/5a69b70e-85f5-4fb9-8a70-3aad89727d54)
+
 ## Acceso a la aplicación
 
 La aplicación estará disponible en:
