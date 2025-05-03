@@ -96,7 +96,20 @@ if [[ "$*" == *"--dev"* ]]; then
     -v "$(pwd)/apps/client/src:/app/src" \
     -v "$(pwd)/apps/client/public:/app/public" \
     -v "$(pwd)/apps/client/index.html:/app/index.html" \
+    -v "$(pwd)/apps/client/.env:/app/.env" \
     localhost/client-dev:latest
+
+  # Verificar que el archivo .env está disponible dentro del contenedor
+  if ! podman exec client test -f /app/.env; then
+    print_warning "Archivo .env no encontrado en el contenedor. Copiando desde el host..."
+    cat apps/client/.env | podman exec -i client sh -c 'cat > /app/.env'
+    
+    if podman exec client test -f /app/.env; then
+      print_message "Archivo .env copiado correctamente al contenedor."
+    else
+      print_error "No se pudo copiar el archivo .env al contenedor."
+    fi
+  fi
 else
   # Modo normal sin montar volúmenes
   podman run -d \

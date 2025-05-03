@@ -19,10 +19,10 @@ class Project(BaseModel, table=True):
     
     # Relaciones con anotaciones de tipo mejoradas
     owner: "UserProfile" = Relationship(back_populates="owned_projects")
-    members: list["ProjectMember"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
-    sprints: list["Sprint"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
-    user_stories: list["UserStory"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
-    boards: list["Board"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project", default=[])
+    members: list["ProjectMember"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
+    sprints: list["Sprint"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
+    user_stories: list["UserStory"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
+    boards: list["Board"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="project")
 
 class ProjectMember(SQLModel, table=True):
     """Miembro de un proyecto"""

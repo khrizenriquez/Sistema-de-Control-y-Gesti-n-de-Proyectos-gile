@@ -4,11 +4,7 @@ import { App } from './app'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 
-// Importar los scripts que arreglan problemas
-import './fixes/fixLoginMessage'
-import './fixes/fixAuthentication' // Script para arreglar redirecciones
-import './fixes/jwtDebugger' // Script para diagnosticar problemas JWT
-
+// Renderizar la aplicación
 render(
   <ThemeProvider>
     <AuthProvider>

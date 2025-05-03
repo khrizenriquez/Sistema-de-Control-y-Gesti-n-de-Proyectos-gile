@@ -6,6 +6,20 @@ export class AuthApiAdapter {
     try {
       console.log('📝 AuthApiAdapter: Iniciando login con Supabase para:', email);
       
+      // Diagnóstico de las variables de Supabase antes de intentar login
+      const hasValidUrl = typeof import.meta.env.VITE_SUPABASE_URL === 'string' && 
+                         import.meta.env.VITE_SUPABASE_URL.startsWith('https://');
+      const hasValidKey = typeof import.meta.env.VITE_SUPABASE_ANON_KEY === 'string' && 
+                         import.meta.env.VITE_SUPABASE_ANON_KEY.length > 10;
+      
+      console.log('Estado de variables para autenticación:');
+      console.log('- URL válida:', hasValidUrl);
+      console.log('- Key válida:', hasValidKey);
+      
+      if (!hasValidUrl || !hasValidKey) {
+        console.error('Variables de Supabase no válidas. La autenticación probablemente fallará.');
+      }
+      
       // Intentar autenticación con Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -23,6 +37,22 @@ export class AuthApiAdapter {
       // Si hay un error explícito, reportarlo
       if (error) {
         console.error('❌ Error de Supabase:', error.message);
+        
+        // Personalizar mensajes de error comunes para que sean más amigables
+        if (error.message.includes('Invalid login credentials')) {
+          return { 
+            success: false, 
+            error: 'Credenciales incorrectas. Verifica tu email y contraseña.' 
+          };
+        }
+        
+        if (error.message.includes('network')) {
+          return { 
+            success: false, 
+            error: 'Error de conexión. Verifica tu conexión a internet e inténtalo de nuevo.' 
+          };
+        }
+        
         return { success: false, error: error.message };
       }
 
@@ -53,36 +83,44 @@ export class AuthApiAdapter {
       
       return { success: true, user };
     } catch (err: any) {
-      console.error('❌ Error inesperado en login:', err.message);
-      return { success: false, error: 'Error inesperado durante el login: ' + err.message };
+      console.error('❌ Error crítico en AuthApiAdapter.login:', err);
+      return { 
+        success: false, 
+        error: `Error inesperado: ${err.message}. Verifica tu conexión y las credenciales de Supabase.`
+      };
     }
   }
 
-  async register(user: User): Promise<{ success: boolean; error?: string; userId?: string }> {
+  async register(user: User): Promise<{ success: boolean; error?: string; user?: User }> {
     try {
+      // Implementar la función de registro
       const { data, error } = await supabase.auth.signUp({
         email: user.email,
         password: user.password || '',
         options: {
           data: {
-            name: user.name || '',
+            name: user.name
           }
         }
       });
 
       if (error) {
-        console.error('Error de registro:', error.message);
         return { success: false, error: error.message };
       }
 
-      if (data.user) {
-        return { success: true, userId: data.user.id };
+      if (!data.user) {
+        return { success: false, error: 'No se recibieron datos de usuario' };
       }
 
-      return { success: false, error: 'No se pudo completar el registro' };
+      const newUser: User = {
+        id: data.user.id,
+        email: data.user.email || '',
+        name: data.user.user_metadata?.name || ''
+      };
+
+      return { success: true, user: newUser };
     } catch (err: any) {
-      console.error('Error inesperado en registro:', err.message);
-      return { success: false, error: 'Error inesperado durante el registro' };
+      return { success: false, error: err.message };
     }
   }
 
@@ -90,12 +128,12 @@ export class AuthApiAdapter {
     try {
       const { error } = await supabase.auth.signOut();
       
+      // Limpiar token en localStorage
+      localStorage.removeItem('authToken');
+      
       if (error) {
         return { success: false, error: error.message };
       }
-      
-      // Limpiar token del localStorage
-      localStorage.removeItem('authToken');
       
       return { success: true };
     } catch (err: any) {

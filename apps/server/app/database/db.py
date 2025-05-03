@@ -6,9 +6,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Crear engine para la conexión a la base de datos
+# Crear engine para la conexión a la base de datos (síncrono)
+sync_database_url = settings.DATABASE_URL.replace(
+    'postgresql+asyncpg', 'postgresql'
+) if 'asyncpg' in settings.DATABASE_URL else settings.DATABASE_URL
+
 engine = create_engine(
-    settings.DATABASE_URI,
+    sync_database_url,
     echo=settings.DEBUG,  # Mostrar consultas SQL en consola si estamos en modo debug
     pool_pre_ping=True    # Comprobar la conexión antes de usarla
 )

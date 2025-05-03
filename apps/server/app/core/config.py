@@ -14,8 +14,8 @@ class Settings(BaseModel):
     SECRET_KEY: str = os.getenv("SECRET_KEY", "mysecretkey")
     
     # Database
-    DATABASE_URI: str = os.getenv(
-        "DATABASE_URI", "postgresql://postgres:postgres@localhost:5432/agile_db"
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/agile_db"
     )
     
     # Supabase

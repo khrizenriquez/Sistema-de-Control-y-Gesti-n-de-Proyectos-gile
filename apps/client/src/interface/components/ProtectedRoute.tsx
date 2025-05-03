@@ -1,8 +1,7 @@
 import { FunctionalComponent } from 'preact';
 import { Route, useLocation } from 'wouter-preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { isAuthenticated, getCurrentUser } from '../../infrastructure/services/supabase';
-import { FixLoginPage } from '../pages/FixLoginPage';
 
 interface ProtectedRouteProps {
   component: FunctionalComponent<any>;
@@ -17,11 +16,15 @@ export const ProtectedRoute: FunctionalComponent<ProtectedRouteProps> = ({
   const [isAuth, setIsAuth] = useState(false);
   const [retries, setRetries] = useState(0);
   const [, setLocation] = useLocation();
+  const redirecting = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
     
     const checkAuth = async () => {
+      // Evitar verificaciones si ya estamos redirigiendo
+      if (redirecting.current) return;
+      
       try {
         setLoading(true);
         
@@ -41,6 +44,9 @@ export const ProtectedRoute: FunctionalComponent<ProtectedRouteProps> = ({
           
           if (!auth) {
             console.log('Usuario no autenticado, redirigiendo a login...');
+            
+            // Prevenir múltiples redirecciones
+            redirecting.current = true;
             
             // Intentar redirección a /login
             try {
@@ -67,8 +73,11 @@ export const ProtectedRoute: FunctionalComponent<ProtectedRouteProps> = ({
             setIsAuth(false);
             setLoading(false);
             
-            // Redirigir después de múltiples intentos fallidos
-            setLocation('/login');
+            if (!redirecting.current) {
+              redirecting.current = true;
+              // Redirigir después de múltiples intentos fallidos
+              setLocation('/login');
+            }
           }
         }
       }
@@ -76,16 +85,9 @@ export const ProtectedRoute: FunctionalComponent<ProtectedRouteProps> = ({
     
     checkAuth();
     
-    // Ejecutar verificación periódicamente mientras el componente esté montado
-    const interval = setInterval(() => {
-      if (loading && retries < 5) {
-        checkAuth();
-      }
-    }, 2000);
-    
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      redirecting.current = false;
     };
   }, [setLocation, retries, rest.path]);
 
@@ -105,7 +107,14 @@ export const ProtectedRoute: FunctionalComponent<ProtectedRouteProps> = ({
         ) : isAuth ? (
           <Component {...props} />
         ) : (
-          <FixLoginPage />
+          <div className="flex items-center justify-center h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            {retries > 0 && (
+              <p className="ml-3 text-sm text-gray-600">
+                Verificando autenticación... ({retries}/3)
+              </p>
+            )}
+          </div>
         )
       }
     />
