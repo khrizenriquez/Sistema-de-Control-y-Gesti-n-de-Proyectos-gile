@@ -93,34 +93,120 @@ export class AuthApiAdapter {
 
   async register(user: User): Promise<{ success: boolean; error?: string; user?: User }> {
     try {
-      // Implementar la función de registro
+      console.log('📝 AuthApiAdapter: Iniciando registro con Supabase para:', user.email);
+      
+      // Verificar que tenemos los datos necesarios
+      if (!user.email || !user.password) {
+        console.error('❌ Datos incompletos para registro');
+        return { 
+          success: false, 
+          error: 'Email y contraseña son requeridos para el registro' 
+        };
+      }
+      
+      // Diagnóstico de las variables de Supabase antes de intentar registro
+      const hasValidUrl = typeof import.meta.env.VITE_SUPABASE_URL === 'string' && 
+                         import.meta.env.VITE_SUPABASE_URL.startsWith('https://');
+      const hasValidKey = typeof import.meta.env.VITE_SUPABASE_ANON_KEY === 'string' && 
+                         import.meta.env.VITE_SUPABASE_ANON_KEY.length > 10;
+      
+      console.log('Estado de variables para registro:');
+      console.log('- URL válida:', hasValidUrl);
+      console.log('- Key válida:', hasValidKey);
+      
+      if (!hasValidUrl || !hasValidKey) {
+        console.error('Variables de Supabase no válidas. El registro probablemente fallará.');
+      }
+      
+      // Intentar registro con Supabase
       const { data, error } = await supabase.auth.signUp({
         email: user.email,
         password: user.password || '',
         options: {
           data: {
-            name: user.name
-          }
+            name: user.name || '',
+            full_name: user.name || ''
+          },
+          emailRedirectTo: `${window.location.origin}/login`
         }
       });
 
+      // Logging detallado de la respuesta para diagnóstico
+      console.log('📌 Respuesta de Supabase:', { 
+        hasData: !!data, 
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
+        error: error ? error.message : null 
+      });
+
       if (error) {
+        console.error('❌ Error de Supabase durante registro:', error.message);
+        
+        // Personalizar mensajes de error comunes para que sean más amigables
+        if (error.message.includes('already registered')) {
+          return { 
+            success: false, 
+            error: 'Este correo electrónico ya está registrado. Intenta iniciar sesión.' 
+          };
+        }
+        
+        if (error.message.includes('email') && error.message.includes('valid')) {
+          return { 
+            success: false, 
+            error: 'Por favor ingresa una dirección de correo electrónico válida.' 
+          };
+        }
+        
+        if (error.message.includes('password')) {
+          return { 
+            success: false, 
+            error: 'La contraseña debe tener al menos 6 caracteres.' 
+          };
+        }
+        
+        if (error.message.includes('network')) {
+          return { 
+            success: false, 
+            error: 'Error de conexión. Verifica tu conexión a internet e inténtalo de nuevo.' 
+          };
+        }
+        
         return { success: false, error: error.message };
       }
 
-      if (!data.user) {
-        return { success: false, error: 'No se recibieron datos de usuario' };
+      // Verificar si realmente tenemos datos de usuario
+      if (!data || !data.user) {
+        console.error('❌ Datos incompletos: No se recibió información del usuario');
+        return { 
+          success: false, 
+          error: 'No se pudo crear el usuario. Por favor intenta nuevamente.' 
+        };
       }
 
+      // Registro exitoso, crear objeto de usuario
       const newUser: User = {
         id: data.user.id,
         email: data.user.email || '',
-        name: data.user.user_metadata?.name || ''
+        name: data.user.user_metadata?.name || data.user.user_metadata?.full_name || ''
       };
-
+      
+      console.log('✅ Registro exitoso para:', newUser.email);
+      
+      // Si hay sesión, guardar token (Supabase puede configurarse para confirmar email antes)
+      if (data.session?.access_token) {
+        localStorage.setItem('authToken', data.session.access_token);
+        console.log('🔑 Token JWT guardado para nuevo usuario');
+      } else {
+        console.log('📧 Registro requiere confirmación de email antes de iniciar sesión');
+      }
+      
       return { success: true, user: newUser };
     } catch (err: any) {
-      return { success: false, error: err.message };
+      console.error('❌ Error crítico en AuthApiAdapter.register:', err);
+      return { 
+        success: false, 
+        error: `Error inesperado: ${err.message}. Verifica tu conexión y las credenciales de Supabase.`
+      };
     }
   }
 
