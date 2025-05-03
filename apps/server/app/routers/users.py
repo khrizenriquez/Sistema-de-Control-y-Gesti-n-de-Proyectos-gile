@@ -28,6 +28,11 @@ class UserProfileResponse(BaseModel):
     email: str
     avatar_url: str = None
     bio: str = None
+    role: str = "member"
+
+# Esquema para actualización de rol
+class UserRoleUpdate(BaseModel):
+    role: str
 
 @router.get("/me", response_model=UserProfileResponse)
 async def get_my_profile(
@@ -99,4 +104,170 @@ async def update_my_profile(
         email=profile.email,
         avatar_url=profile.avatar_url,
         bio=profile.bio
-    ) 
+    )
+
+@router.put("/me/role", response_model=UserProfileResponse)
+async def update_my_role(
+    role_update: UserRoleUpdate,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Actualiza el rol del usuario autenticado"""
+    profile = db.exec(
+        select(UserProfile).where(UserProfile.auth_id == current_user.id)
+    ).first()
+    
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Perfil no encontrado"
+        )
+    
+    # Validar rol
+    valid_roles = ["admin", "developer", "product_owner", "member"]
+    if role_update.role not in valid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Rol inválido. Debe ser uno de: {', '.join(valid_roles)}"
+        )
+    
+    # Actualizar el rol
+    profile.role = role_update.role
+    
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    
+    return UserProfileResponse(
+        id=profile.id,
+        auth_id=profile.auth_id,
+        first_name=profile.first_name,
+        last_name=profile.last_name,
+        email=profile.email,
+        avatar_url=profile.avatar_url,
+        bio=profile.bio,
+        role=profile.role
+    )
+
+# Endpoint para crear un nuevo usuario (solo para administradores)
+class CreateUserRequest(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    role: str
+    bio: str = None
+    avatar_url: str = None
+
+@router.post("/", response_model=UserProfileResponse)
+async def create_user(
+    user_data: CreateUserRequest,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Crea un nuevo usuario (solo administradores)"""
+    # Verificar que el usuario actual es administrador
+    admin_profile = db.exec(
+        select(UserProfile).where(UserProfile.auth_id == current_user.id)
+    ).first()
+    
+    if not admin_profile or admin_profile.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los administradores pueden crear usuarios"
+        )
+    
+    # Validar rol
+    valid_roles = ["admin", "developer", "product_owner", "member"]
+    if user_data.role not in valid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Rol inválido. Debe ser uno de: {', '.join(valid_roles)}"
+        )
+    
+    # Crear usuario en Supabase
+    # Nota: Esto requiere configuración adicional y una instancia de cliente Supabase con clave de servicio
+    # Aquí solo mostramos un ejemplo conceptual
+    try:
+        # En una implementación real, usarías el SDK de Supabase para Python o llamadas a la API
+        # con la clave service_role_key que tiene permisos para crear usuarios
+        
+        # Ejemplo (conceptual):
+        # supabase_client = create_client(supabase_url, supabase_service_key)
+        # auth_user = supabase_client.auth.admin.create_user({
+        #    "email": user_data.email,
+        #    "password": user_data.password,
+        #    "user_metadata": {
+        #        "first_name": user_data.first_name,
+        #        "last_name": user_data.last_name
+        #    }
+        # })
+        
+        # Simulamos la respuesta para este ejemplo
+        auth_user_id = "simulado-auth-id-" + user_data.email
+        
+        # Crear perfil en nuestra base de datos
+        new_profile = UserProfile(
+            auth_id=auth_user_id,
+            email=user_data.email,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            bio=user_data.bio,
+            avatar_url=user_data.avatar_url,
+            role=user_data.role
+        )
+        
+        db.add(new_profile)
+        db.commit()
+        db.refresh(new_profile)
+        
+        return UserProfileResponse(
+            id=new_profile.id,
+            auth_id=new_profile.auth_id,
+            first_name=new_profile.first_name,
+            last_name=new_profile.last_name,
+            email=new_profile.email,
+            avatar_url=new_profile.avatar_url,
+            bio=new_profile.bio,
+            role=new_profile.role
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al crear usuario: {str(e)}"
+        )
+
+@router.get("/", response_model=List[UserProfileResponse])
+async def list_users(
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Listar todos los usuarios (solo administradores)"""
+    # Verificar que el usuario actual es administrador
+    admin_profile = db.exec(
+        select(UserProfile).where(UserProfile.auth_id == current_user.id)
+    ).first()
+    
+    if not admin_profile or admin_profile.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los administradores pueden listar usuarios"
+        )
+    
+    # Obtener todos los perfiles
+    profiles = db.exec(select(UserProfile)).all()
+    
+    return [
+        UserProfileResponse(
+            id=profile.id,
+            auth_id=profile.auth_id,
+            first_name=profile.first_name,
+            last_name=profile.last_name,
+            email=profile.email,
+            avatar_url=profile.avatar_url,
+            bio=profile.bio,
+            role=profile.role
+        )
+        for profile in profiles
+    ] 

@@ -17,6 +17,7 @@ class UserProfile(BaseModel, table=True):
     email: str = Field(index=True)
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+    role: str = Field(default="member", index=True)  # Valores posibles: 'admin', 'developer', 'product_owner', 'member'
     
     # Relaciones
     owned_projects: list["Project"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="owner")

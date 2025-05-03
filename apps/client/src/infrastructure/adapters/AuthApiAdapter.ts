@@ -125,7 +125,8 @@ export class AuthApiAdapter {
         options: {
           data: {
             name: user.name || '',
-            full_name: user.name || ''
+            full_name: user.name || '',
+            role: 'admin' // Asignar rol de admin por defecto en los metadatos
           },
           emailRedirectTo: `${window.location.origin}/login`
         }
@@ -187,7 +188,8 @@ export class AuthApiAdapter {
       const newUser: User = {
         id: data.user.id,
         email: data.user.email || '',
-        name: data.user.user_metadata?.name || data.user.user_metadata?.full_name || ''
+        name: data.user.user_metadata?.name || data.user.user_metadata?.full_name || '',
+        role: 'admin' // Asignar rol de admin por defecto
       };
       
       console.log('✅ Registro exitoso para:', newUser.email);
@@ -196,6 +198,29 @@ export class AuthApiAdapter {
       if (data.session?.access_token) {
         localStorage.setItem('authToken', data.session.access_token);
         console.log('🔑 Token JWT guardado para nuevo usuario');
+        
+        // Hacer una llamada a nuestra API para actualizar el rol a 'admin'
+        try {
+          // Acceder a la API con el token JWT ya almacenado
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          const response = await fetch(`${apiUrl}/api/users/me/role`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${data.session.access_token}`
+            },
+            body: JSON.stringify({ role: 'admin' })
+          });
+          
+          if (response.ok) {
+            console.log('✅ Rol asignado como admin correctamente');
+          } else {
+            console.warn('⚠️ No se pudo asignar el rol de admin, pero el usuario fue creado');
+          }
+        } catch (apiError) {
+          console.error('❌ Error al llamar a la API para asignar rol:', apiError);
+          // No fallamos el registro por esto, ya que el usuario se creó correctamente
+        }
       } else {
         console.log('📧 Registro requiere confirmación de email antes de iniciar sesión');
       }

@@ -254,6 +254,25 @@ export const Layout: FunctionComponent<LayoutProps> = ({ children }) => {
                 </Link>
               </li>
               
+              {/* Sección de administración - solo visible para administradores */}
+              {user?.role === 'admin' && (
+                <>
+                  <div className="mt-6 mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <h3 className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Administración
+                    </h3>
+                  </div>
+                  <li>
+                    <Link href="/admin/users">
+                      <div className="flex items-center p-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                        <IconUsers size={20} className="mr-3" />
+                        <span>Gestión de Usuarios</span>
+                      </div>
+                    </Link>
+                  </li>
+                </>
+              )}
+              
               <div className="mt-6 mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
                 <h3 className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Actividad
