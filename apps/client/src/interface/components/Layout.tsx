@@ -1,7 +1,8 @@
 import { FunctionComponent, JSX } from 'preact';
-import { useState } from 'preact/hooks';
-import { Link } from 'wouter-preact';
+import { useState, useRef, useEffect } from 'preact/hooks';
+import { Link, useLocation } from 'wouter-preact';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Importar iconos
 import { 
@@ -15,11 +16,66 @@ interface LayoutProps {
 
 export const Layout: FunctionComponent<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTimeoutRef = useRef<number | null>(null);
   const { isDarkTheme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
+
+  const handleDropdownToggle = () => {
+    setShowUserDropdown(!showUserDropdown);
+    
+    // Limpiar cualquier timeout existente
+    if (dropdownTimeoutRef.current) {
+      window.clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const result = await logout();
+      if (result.success) {
+        console.log('Sesión cerrada correctamente');
+        setLocation('/');
+      } else {
+        console.error('Error al cerrar sesión:', result.error);
+      }
+    } catch (error) {
+      console.error('Error en el proceso de logout:', error);
+    }
+  };
+
+  // Cerrar el dropdown cuando se hace clic fuera de él
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        // Añadir un retraso antes de cerrar el menú para mejor UX
+        dropdownTimeoutRef.current = window.setTimeout(() => {
+          setShowUserDropdown(false);
+        }, 200);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      // Limpiar timeout al desmontar
+      if (dropdownTimeoutRef.current) {
+        window.clearTimeout(dropdownTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Obtener iniciales del usuario o usar KH como fallback
+  const userInitials = user?.name 
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+    : 'KH';
 
   return (
     <div className={`min-h-screen flex flex-col ${isDarkTheme ? 'dark' : ''}`}>
@@ -85,32 +141,53 @@ export const Layout: FunctionComponent<LayoutProps> = ({ children }) => {
           </Link>
           
           {/* Dropdown de usuario */}
-          <div className="relative group">
-            <button className="flex items-center space-x-2 focus:outline-none">
+          <div className="relative" ref={dropdownRef}>
+            <button 
+              onClick={handleDropdownToggle}
+              className="flex items-center space-x-2 focus:outline-none"
+            >
               <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
-                KH
+                {userInitials}
               </div>
             </button>
             
             {/* Menú del dropdown */}
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-20 hidden group-hover:block">
-              <Link href="/profile">
-                <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  Perfil
-                </div>
-              </Link>
-              <Link href="/settings">
-                <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  Configuración
-                </div>
-              </Link>
-              <hr className="my-1 dark:border-gray-600" />
-              <button 
-                className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            {showUserDropdown && (
+              <div 
+                className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-20"
+                onMouseEnter={() => {
+                  // Cancelar cierre del menú si el ratón está sobre él
+                  if (dropdownTimeoutRef.current) {
+                    window.clearTimeout(dropdownTimeoutRef.current);
+                    dropdownTimeoutRef.current = null;
+                  }
+                }}
               >
-                Cerrar sesión
-              </button>
-            </div>
+                {user && (
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                    <p className="text-sm font-medium text-gray-800 dark:text-white">{user.name || 'Usuario'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                  </div>
+                )}
+                <Link href="/profile">
+                  <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    Perfil
+                  </div>
+                </Link>
+                <Link href="/settings">
+                  <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    Configuración
+                  </div>
+                </Link>
+                <hr className="my-1 dark:border-gray-600" />
+                <button 
+                  onClick={handleLogout}
+                  className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>

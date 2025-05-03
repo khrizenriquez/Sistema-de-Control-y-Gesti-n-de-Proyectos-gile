@@ -13,12 +13,14 @@ import { TeamPage } from './interface/pages/TeamPage';
 import { NotificationsPage } from './interface/pages/NotificationsPage';
 import { Layout } from './interface/components/Layout';
 import { FunctionComponent } from 'preact';
+import { ProtectedRoute } from './interface/components/ProtectedRoute';
+import { EnvWarning } from './components/EnvWarning';
 import './style.css'
 
 // Componente para rutas que requieren autenticación y tienen el Layout
-const AuthRoute = ({ component: Component, ...rest }: { component: FunctionComponent<any>, path: string }) => {
+const AuthRouteWithLayout = ({ component: Component, ...rest }: { component: FunctionComponent<any>, path: string }) => {
   return (
-    <Route
+    <ProtectedRoute
       {...rest}
       component={(props: any) => (
         <Layout>
@@ -39,19 +41,22 @@ export function App() {
         <Route path="/register" component={RegisterPage} />
         
         {/* Rutas protegidas con Layout */}
-        <AuthRoute path="/dashboard" component={DashboardPage} />
-        <AuthRoute path="/profile" component={ProfilePage} />
-        <AuthRoute path="/boards" component={BoardsPage} />
-        <AuthRoute path="/boards/new" component={CreateBoardPage} />
-        <AuthRoute path="/boards/calendar" component={BoardCalendarPage} />
-        <AuthRoute path="/boards/:id" component={BoardPage} />
-        <AuthRoute path="/boards/:id/settings" component={BoardSettingsPage} />
-        <AuthRoute path="/boards/:id/calendar" component={BoardCalendarPage} />
-        <AuthRoute path="/teams" component={TeamsPage} />
-        <AuthRoute path="/teams/:id" component={TeamPage} />
-        <AuthRoute path="/teams/:id/:tab" component={TeamPage} />
-        <AuthRoute path="/notifications" component={NotificationsPage} />
+        <AuthRouteWithLayout path="/dashboard" component={DashboardPage} />
+        <AuthRouteWithLayout path="/profile" component={ProfilePage} />
+        <AuthRouteWithLayout path="/boards" component={BoardsPage} />
+        <AuthRouteWithLayout path="/boards/new" component={CreateBoardPage} />
+        <AuthRouteWithLayout path="/boards/calendar" component={BoardCalendarPage} />
+        <AuthRouteWithLayout path="/boards/:id" component={BoardPage} />
+        <AuthRouteWithLayout path="/boards/:id/settings" component={BoardSettingsPage} />
+        <AuthRouteWithLayout path="/boards/:id/calendar" component={BoardCalendarPage} />
+        <AuthRouteWithLayout path="/teams" component={TeamsPage} />
+        <AuthRouteWithLayout path="/teams/:id" component={TeamPage} />
+        <AuthRouteWithLayout path="/teams/:id/:tab" component={TeamPage} />
+        <AuthRouteWithLayout path="/notifications" component={NotificationsPage} />
       </Switch>
+      
+      {/* Componente de utilidad */}
+      <EnvWarning />
     </div>
   );
 }

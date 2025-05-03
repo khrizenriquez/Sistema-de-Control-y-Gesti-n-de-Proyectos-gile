@@ -19,5 +19,5 @@ class UserProfile(BaseModel, table=True):
     bio: Optional[str] = None
     
     # Relaciones
-    owned_projects: list["Project"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="owner", default=[])
-    memberships: list["ProjectMember"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="user", default=[]) 
+    owned_projects: list["Project"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="owner")
+    memberships: list["ProjectMember"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="user") 

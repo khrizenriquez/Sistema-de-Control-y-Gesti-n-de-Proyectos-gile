@@ -1,37 +1,29 @@
-from pydantic import BaseSettings
-from typing import Optional
 import os
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# Cargar variables de entorno
+# Cargar variables de entorno desde .env
 load_dotenv()
 
-class Settings(BaseSettings):
-    PROJECT_NAME: str = "Sistema de Control y Gestión de Proyectos Ágiles"
-    PROJECT_VERSION: str = "0.1.0"
-    API_PREFIX: str = "/api"
+class Settings(BaseModel):
+    # App general
+    PROJECT_NAME: str = os.getenv("APP_NAME", "Sistema de Control y Gestión de Proyectos Ágiles")
+    PROJECT_VERSION: str = os.getenv("APP_VERSION", "0.1.0")
+    API_PREFIX: str = os.getenv("API_PREFIX", "/api")
+    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "mysecretkey")
     
-    # Configuración de base de datos
+    # Database
     DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", 
-        "postgresql+asyncpg://agileuser:agilepassword@db:5432/agiledb"
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/agile_db"
     )
     
-    # Configuración Supabase
+    # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     
-    # Configuración JWT
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "temporary_secret_key_change_this_in_production")
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 día
-    
-    # Datos de prueba
+    # Migraciones y datos de prueba
     LOAD_TEST_DATA: str = os.getenv("LOAD_TEST_DATA", "false")
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
-
+# Crear instancia de configuración
 settings = Settings() 

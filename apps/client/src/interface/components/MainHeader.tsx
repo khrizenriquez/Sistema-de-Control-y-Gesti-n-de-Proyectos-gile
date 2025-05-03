@@ -2,6 +2,7 @@ import { FunctionComponent } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { Link, useLocation } from 'wouter-preact';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface User {
   id: string;
@@ -19,34 +20,66 @@ interface MainHeaderProps {
 export const MainHeader: FunctionComponent<MainHeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTimeoutRef = useRef<number | null>(null);
   const { isDarkTheme, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
+  const { user: authUser, logout } = useAuth();
 
-  // Datos de usuario simulados (en una aplicación real vendría de un contexto o estado global)
-  const user: User = {
+  // Datos de usuario (usando authUser si está disponible, o datos simulados en caso contrario)
+  const user: User = authUser ? {
+    id: authUser.id,
+    name: authUser.name || 'Usuario',
+    email: authUser.email || '',
+    initials: authUser.name ? authUser.name.substring(0, 2).toUpperCase() : 'U'
+  } : {
     id: 'user-1',
     name: 'Christofer Enríquez',
     email: 'cenriquez@example.com',
     initials: 'CE'
   };
 
-  const handleLogout = () => {
-    // Aquí iría la lógica de logout
-    localStorage.removeItem('token');
-    setLocation('/login');
+  const handleLogout = async () => {
+    try {
+      const result = await logout();
+      if (result.success) {
+        console.log('Sesión cerrada correctamente');
+        setLocation('/');
+      } else {
+        console.error('Error al cerrar sesión:', result.error);
+      }
+    } catch (error) {
+      console.error('Error en el proceso de logout:', error);
+    }
+  };
+
+  const handleDropdownToggle = () => {
+    setShowUserDropdown(!showUserDropdown);
+    
+    // Limpiar cualquier timeout existente
+    if (dropdownTimeoutRef.current) {
+      window.clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
   };
 
   // Cerrar el dropdown cuando se hace clic fuera de él
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowUserDropdown(false);
+        // Añadir un pequeño retraso antes de cerrar el menú
+        dropdownTimeoutRef.current = window.setTimeout(() => {
+          setShowUserDropdown(false);
+        }, 200); // 200ms de retraso para mejorar UX
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      // Limpiar timeout al desmontar
+      if (dropdownTimeoutRef.current) {
+        window.clearTimeout(dropdownTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -122,7 +155,7 @@ export const MainHeader: FunctionComponent<MainHeaderProps> = ({ toggleSidebar, 
         {/* Dropdown de usuario */}
         <div className="relative" ref={dropdownRef}>
           <button
-            onClick={() => setShowUserDropdown(!showUserDropdown)}
+            onClick={handleDropdownToggle}
             className="flex items-center space-x-1 focus:outline-none"
           >
             <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
@@ -138,7 +171,16 @@ export const MainHeader: FunctionComponent<MainHeaderProps> = ({ toggleSidebar, 
           </button>
 
           {showUserDropdown && (
-            <div className="absolute right-0 mt-2 w-48 py-2 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+            <div 
+              className="absolute right-0 mt-2 w-48 py-2 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700"
+              onMouseEnter={() => {
+                // Cancelar cierre del menú si el ratón está sobre él
+                if (dropdownTimeoutRef.current) {
+                  window.clearTimeout(dropdownTimeoutRef.current);
+                  dropdownTimeoutRef.current = null;
+                }
+              }}
+            >
               <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>

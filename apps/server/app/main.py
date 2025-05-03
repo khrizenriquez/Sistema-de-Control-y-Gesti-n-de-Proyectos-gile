@@ -40,18 +40,15 @@ app.add_middleware(
 async def on_startup():
     logger.info("Iniciando servidor...")
     
-    # En lugar de create_db_and_tables(), ejecutar migraciones con Alembic
     try:
-        # Ejecutar migraciones de Alembic
-        logger.info("Ejecutando migraciones de base de datos...")
-        alembic_cmd = "alembic upgrade head"
-        subprocess.run(alembic_cmd, shell=True, check=True)
-        logger.info("Migraciones completadas exitosamente")
-    except Exception as e:
-        logger.error(f"Error ejecutando migraciones: {str(e)}")
-        # Fallback a creación automática si las migraciones fallan
-        logger.info("Utilizando creación automática de tablas como fallback")
+        # En lugar de intentar verificar si las tablas existen mediante operaciones async,
+        # simplemente intentaremos crear las tablas directamente.
+        # Si ya existen, SQLAlchemy manejará esto sin problemas
+        logger.info("Creando tablas si no existen...")
         create_db_and_tables()
+        logger.info("Operación de creación de tablas completada")
+    except Exception as e:
+        logger.error(f"Error al crear tablas: {str(e)}")
     
     # Cargar datos de prueba si está habilitado
     load_test_data = getattr(settings, "LOAD_TEST_DATA", "false")
@@ -76,10 +73,11 @@ async def root():
 async def health_check():
     return {"status": "healthy", "version": settings.PROJECT_VERSION}
 
-# Aquí se importarán los routers posteriormente
-# from app.routers import projects, users, tasks
+# Importar routers
+from app.routers import users
+# from app.routers import projects, tasks
 
-# Y se incluirán en la aplicación
-# app.include_router(users.router, prefix=settings.API_PREFIX)
+# Incluir routers en la aplicación
+app.include_router(users.router, prefix=settings.API_PREFIX)
 # app.include_router(projects.router, prefix=settings.API_PREFIX)
 # app.include_router(tasks.router, prefix=settings.API_PREFIX) 

@@ -1,7 +1,8 @@
 import { FunctionComponent } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
-import { Link } from 'wouter-preact';
+import { Link, useLocation } from 'wouter-preact';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -11,22 +12,52 @@ export const Header: FunctionComponent<HeaderProps> = ({ onMenuToggle }) => {
   const { isDarkTheme, toggleTheme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTimeoutRef = useRef<number | null>(null);
+  const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+        // Añadir un retraso antes de cerrar el menú para mejor UX
+        dropdownTimeoutRef.current = window.setTimeout(() => {
+          setIsDropdownOpen(false);
+        }, 200);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      // Limpiar timeout al desmontar
+      if (dropdownTimeoutRef.current) {
+        window.clearTimeout(dropdownTimeoutRef.current);
+      }
     };
   }, []);
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
+    
+    // Limpiar cualquier timeout existente
+    if (dropdownTimeoutRef.current) {
+      window.clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const result = await logout();
+      if (result.success) {
+        console.log('Sesión cerrada correctamente');
+        setLocation('/');
+      } else {
+        console.error('Error al cerrar sesión:', result.error);
+      }
+    } catch (error) {
+      console.error('Error en el proceso de logout:', error);
+    }
   };
 
   return (
@@ -88,18 +119,39 @@ export const Header: FunctionComponent<HeaderProps> = ({ onMenuToggle }) => {
               onClick={toggleDropdown}
               className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              <img
-                src="https://i.pravatar.cc/32"
-                alt="Avatar"
-                className="h-8 w-8 rounded-full"
-              />
+              {user?.name ? (
+                <div className="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                  {user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                </div>
+              ) : (
+                <img
+                  src="https://i.pravatar.cc/32"
+                  alt="Avatar"
+                  className="h-8 w-8 rounded-full"
+                />
+              )}
               <span className="material-icons text-gray-600 dark:text-gray-200">
                 {isDropdownOpen ? 'arrow_drop_up' : 'arrow_drop_down'}
               </span>
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700">
+              <div 
+                className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700"
+                onMouseEnter={() => {
+                  // Cancelar cierre del menú si el ratón está sobre él
+                  if (dropdownTimeoutRef.current) {
+                    window.clearTimeout(dropdownTimeoutRef.current);
+                    dropdownTimeoutRef.current = null;
+                  }
+                }}
+              >
+                {user && (
+                  <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-800 dark:text-white">{user.name || 'Usuario'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                  </div>
+                )}
                 <Link href="/profile">
                   <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                     <span className="material-icons mr-2 text-gray-500 dark:text-gray-400 align-middle text-sm">person</span>
@@ -113,12 +165,13 @@ export const Header: FunctionComponent<HeaderProps> = ({ onMenuToggle }) => {
                   </div>
                 </Link>
                 <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                <Link href="/logout">
-                  <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <span className="material-icons mr-2 text-gray-500 dark:text-gray-400 align-middle text-sm">logout</span>
-                    Cerrar sesión
-                  </div>
-                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <span className="material-icons mr-2 text-gray-500 dark:text-gray-400 align-middle text-sm">logout</span>
+                  Cerrar sesión
+                </button>
               </div>
             )}
           </div>
