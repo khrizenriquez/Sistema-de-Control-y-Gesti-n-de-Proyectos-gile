@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 
 console.log('🔥 Inicializando servicio de Supabase...');
 
@@ -41,6 +41,8 @@ try {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        // Almacenar la sesión en localStorage para persistencia
+        storage: localStorage
       },
     });
     
@@ -80,6 +82,7 @@ export type AuthUser = {
   user_metadata?: {
     first_name?: string;
     last_name?: string;
+    name?: string; // Agregamos name para ser consistentes con lo que estamos usando
   };
 }
 
@@ -98,7 +101,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
 };
 
 // Helper para obtener la sesión actual
-export const getCurrentSession = async () => {
+export const getCurrentSession = async (): Promise<Session | null> => {
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
@@ -115,4 +118,70 @@ export const getCurrentSession = async () => {
 export const isAuthenticated = async (): Promise<boolean> => {
   const session = await getCurrentSession();
   return !!session;
+};
+
+// Refrescar token de autenticación
+export const refreshSession = async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    
+    if (error) {
+      console.error('Error al refrescar sesión:', error.message);
+      return { success: false, error: error.message };
+    }
+    
+    if (!data.session) {
+      return { success: false, error: 'No se pudo refrescar la sesión' };
+    }
+    
+    console.log('✅ Sesión refrescada exitosamente');
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error inesperado al refrescar sesión:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+// Cerrar sesión en todos los dispositivos
+export const signOutFromAllDevices = async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
+    
+    if (error) {
+      console.error('Error al cerrar sesión en todos los dispositivos:', error.message);
+      return { success: false, error: error.message };
+    }
+    
+    // Limpiar token en localStorage
+    localStorage.removeItem('authToken');
+    
+    console.log('✅ Sesión cerrada en todos los dispositivos');
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error inesperado al cerrar sesión global:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+// Configurar un listener para cambios en la sesión
+export const setupSessionListener = (
+  onAuthenticated: (session: Session) => void,
+  onUnauthenticated: () => void
+) => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (session) {
+        console.log('🔔 Evento de autenticación:', event);
+        onAuthenticated(session);
+      }
+    } else if (event === 'SIGNED_OUT') {
+      console.log('🔔 Usuario ha cerrado sesión');
+      onUnauthenticated();
+    }
+  });
+  
+  // Devuelve la función para desuscribirse
+  return () => {
+    subscription.unsubscribe();
+  };
 }; 

@@ -1,7 +1,7 @@
 import { createContext } from 'preact';
 import { useState, useEffect, useContext } from 'preact/hooks';
 import { User } from '../domain/entities/User';
-import { supabase, getCurrentUser } from '../infrastructure/services/supabase';
+import { supabase, getCurrentUser, setupSessionListener } from '../infrastructure/services/supabase';
 import { AuthApiAdapter } from '../infrastructure/adapters/AuthApiAdapter';
 
 interface AuthContextType {
@@ -11,6 +11,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (user: User) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<{ success: boolean; error?: string }>;
+  logoutFromAllDevices: () => Promise<{ success: boolean; error?: string }>;
+  refreshSession: () => Promise<{ success: boolean; error?: string }>;
+  checkSession: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,7 +33,7 @@ export const AuthProvider = ({ children }: { children: any }) => {
         setUser(currentUser ? {
           id: currentUser.id,
           email: currentUser.email || '',
-          name: currentUser.user_metadata?.first_name || ''
+          name: currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || ''
         } : null);
       } catch (error: any) {
         setError(error.message);
@@ -41,25 +44,31 @@ export const AuthProvider = ({ children }: { children: any }) => {
 
     getInitialSession();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_, session) => {
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || ''
-          });
-        } else {
-          setUser(null);
-        }
+    // Configurar listener para cambios en la autenticación
+    const cleanupListener = setupSessionListener(
+      // Callback para cuando el usuario se autentica
+      (session) => {
+        getCurrentUser().then(currentUser => {
+          if (currentUser) {
+            setUser({
+              id: currentUser.id,
+              email: currentUser.email || '',
+              name: currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || ''
+            });
+          }
+          setLoading(false);
+        });
+      },
+      // Callback para cuando el usuario cierra sesión
+      () => {
+        setUser(null);
         setLoading(false);
       }
     );
 
     // Cleanup subscription on unmount
     return () => {
-      subscription.unsubscribe();
+      cleanupListener();
     };
   }, []);
 
@@ -67,6 +76,12 @@ export const AuthProvider = ({ children }: { children: any }) => {
     try {
       setLoading(true);
       const result = await authApi.login(email, password);
+      
+      // Si el login es exitoso, actualizamos el usuario en el contexto
+      if (result.success && result.user) {
+        setUser(result.user);
+      }
+      
       return result;
     } catch (error: any) {
       setError(error.message);
@@ -80,6 +95,12 @@ export const AuthProvider = ({ children }: { children: any }) => {
     try {
       setLoading(true);
       const result = await authApi.register(userData);
+      
+      // En algunos casos, el registro también inicia sesión automáticamente
+      if (result.success && result.user) {
+        setUser(result.user);
+      }
+      
       return { success: result.success, error: result.error };
     } catch (error: any) {
       setError(error.message);
@@ -104,6 +125,43 @@ export const AuthProvider = ({ children }: { children: any }) => {
       setLoading(false);
     }
   };
+  
+  const logoutFromAllDevices = async () => {
+    try {
+      setLoading(true);
+      const result = await authApi.logoutFromAllDevices();
+      if (result.success) {
+        setUser(null);
+      }
+      return result;
+    } catch (error: any) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const refreshSession = async () => {
+    try {
+      setLoading(true);
+      return await authApi.refreshAuthSession();
+    } catch (error: any) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const checkSession = async () => {
+    try {
+      return await authApi.hasValidSession();
+    } catch (error: any) {
+      setError(error.message);
+      return false;
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -113,7 +171,10 @@ export const AuthProvider = ({ children }: { children: any }) => {
         error,
         login,
         register,
-        logout
+        logout,
+        logoutFromAllDevices,
+        refreshSession,
+        checkSession
       }}
     >
       {children}

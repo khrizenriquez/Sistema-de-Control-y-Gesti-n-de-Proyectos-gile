@@ -165,12 +165,6 @@ export const LoginPage: FunctionComponent = () => {
               )}
             </div>
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
-                <Link href="/forgot-password" className="text-xs text-blue-500 hover:underline">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
               <div className="relative">
                 <input
                   id="password"

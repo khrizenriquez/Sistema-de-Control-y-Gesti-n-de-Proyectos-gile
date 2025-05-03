@@ -1,5 +1,5 @@
 import { User } from '../../domain/entities/User';
-import { supabase } from '../services/supabase';
+import { supabase, refreshSession, signOutFromAllDevices } from '../services/supabase';
 
 export class AuthApiAdapter {
   async login(email: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> {
@@ -227,6 +227,23 @@ export class AuthApiAdapter {
     }
   }
 
+  async logoutFromAllDevices(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const result = await signOutFromAllDevices();
+      return result;
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  async refreshAuthSession(): Promise<{ success: boolean; error?: string }> {
+    try {
+      return await refreshSession();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
   async getCurrentUser(): Promise<User | null> {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -235,7 +252,18 @@ export class AuthApiAdapter {
     return {
       id: user.id,
       email: user.email || '',
-      name: user.user_metadata?.name || ''
+      name: user.user_metadata?.name || user.user_metadata?.full_name || ''
     };
+  }
+
+  // Verificar si existe una sesión activa válida
+  async hasValidSession(): Promise<boolean> {
+    try {
+      const { data } = await supabase.auth.getSession();
+      return !!data.session;
+    } catch (err) {
+      console.error('Error al verificar sesión:', err);
+      return false;
+    }
   }
 } 
