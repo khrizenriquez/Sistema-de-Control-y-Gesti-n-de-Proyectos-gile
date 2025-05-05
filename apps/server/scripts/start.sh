@@ -53,6 +53,10 @@ fi
 echo "Creando tablas en la base de datos..."
 python -c "from app.database.create_tables import create_tables; create_tables()"
 
+# Add after creating tables and before seeding users
+echo "Ejecutando script de migración para añadir columna creator_id..."
+python /app/migrations/add_creator_id.py
+
 # Crear script de usuarios de prueba
 cat > /app/seed_users.py << 'EOF'
 #!/usr/bin/env python3
@@ -142,25 +146,25 @@ def create_test_users():
             print("Ya existen usuarios en la base de datos. No se crearán nuevos usuarios.")
             return
         
-        # Insertar usuarios
+        # Insertar usuarios con columna is_active
         users = [
-            (admin_id, "supabase-auth-id-1", "Admin", "Usuario", "admin@ingsistemas.gt", "admin", now, now),
-            (developer_id, "supabase-auth-id-2", "Desarrollador", "Ejemplo", "dev@ingsistemas.gt", "developer", now, now),
-            (product_owner_id, "supabase-auth-id-3", "Project", "Manager", "pm@ingsistemas.gt", "product_owner", now, now),
-            (member_id, "supabase-auth-id-4", "Miembro", "Regular", "member@ingsistemas.gt", "member", now, now)
+            (admin_id, "supabase-auth-id-1", "Admin", "Usuario", "admin@ingsistemas.gt", "admin", now, now, True),
+            (developer_id, "supabase-auth-id-2", "Desarrollador", "Ejemplo", "dev@ingsistemas.gt", "developer", now, now, True),
+            (product_owner_id, "supabase-auth-id-3", "Project", "Manager", "pm@ingsistemas.gt", "product_owner", now, now, True),
+            (member_id, "supabase-auth-id-4", "Miembro", "Regular", "member@ingsistemas.gt", "member", now, now, True)
         ]
         
         cur.executemany(
-            "INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, role, created_at, updated_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            "INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, role, created_at, updated_at, is_active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
             users
         )
         
-        # Insertar proyecto demo
+        # Insertar proyecto demo con is_active
         cur.execute(
-            "INSERT INTO projects (id, name, description, owner_id, created_at, updated_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s)",
-            (project_id, "Proyecto Demo", "Un proyecto de demostración", admin_id, now, now)
+            "INSERT INTO projects (id, name, description, owner_id, created_at, updated_at, is_active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (project_id, "Proyecto Demo", "Un proyecto de demostración", admin_id, now, now, True)
         )
         
         # Insertar miembros del proyecto con diferentes roles

@@ -3,6 +3,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.supabase import validate_jwt_token, get_user_by_id
 from typing import Optional, Any, Dict
 from pydantic import BaseModel
+from app.database.db import engine
+from sqlalchemy.sql import text
+import uuid
 
 # Modelo para representar los datos del usuario autenticado
 class AuthUser(BaseModel):
@@ -13,6 +16,75 @@ class AuthUser(BaseModel):
 
 # Configuración del bearer token para autenticación
 security = HTTPBearer()
+
+async def sync_user_to_database(user_info: Dict[str, Any]) -> None:
+    """
+    Sincroniza un usuario de Supabase a la base de datos local.
+    Crea un perfil local si no existe.
+    """
+    try:
+        # Conectar a la base de datos
+        with engine.connect() as conn:
+            # Verificar si el usuario ya existe en la base de datos local
+            query = text("""
+                SELECT id FROM user_profiles
+                WHERE auth_id = :auth_id OR email = :email
+            """)
+            
+            result = conn.execute(query, {"auth_id": user_info['id'], "email": user_info['email']})
+            user_record = result.fetchone()
+            
+            # Si el usuario no existe, crearlo
+            if not user_record:
+                # Generar un ID para el usuario local
+                local_user_id = str(uuid.uuid4())
+                
+                # Obtener metadatos de usuario
+                metadata = user_info.get('user_metadata', {}) or {}
+                first_name = metadata.get('first_name', user_info.get('name', '').split(' ')[0] if user_info.get('name') else '')
+                last_name = metadata.get('last_name', ' '.join(user_info.get('name', '').split(' ')[1:]) if user_info.get('name') and ' ' in user_info.get('name') else '')
+                role = metadata.get('role', 'member')
+                
+                # Crear el usuario en la base de datos local
+                insert_query = text("""
+                    INSERT INTO user_profiles (
+                        id, auth_id, email, first_name, last_name, role,
+                        created_at, updated_at, is_active
+                    )
+                    VALUES (
+                        :id, :auth_id, :email, :first_name, :last_name, :role,
+                        NOW(), NOW(), true
+                    )
+                """)
+                
+                conn.execute(insert_query, {
+                    "id": local_user_id,
+                    "auth_id": user_info['id'],
+                    "email": user_info['email'],
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "role": role
+                })
+                
+                # Hacer commit de los cambios
+                conn.commit()
+                print(f"Usuario {user_info['email']} sincronizado con la base de datos local")
+            else:
+                # Si el usuario existe pero el auth_id no coincide, actualizarlo
+                update_query = text("""
+                    UPDATE user_profiles 
+                    SET auth_id = :auth_id, updated_at = NOW()
+                    WHERE email = :email AND (auth_id IS NULL OR auth_id != :auth_id)
+                """)
+                
+                conn.execute(update_query, {
+                    "auth_id": user_info['id'],
+                    "email": user_info['email']
+                })
+                
+                conn.commit()
+    except Exception as e:
+        print(f"Error al sincronizar usuario con la base de datos local: {e}")
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> AuthUser:
     """
@@ -49,6 +121,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="Información de usuario incompleta",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Sincronizar el usuario con la base de datos local
+    await sync_user_to_database(user_info)
     
     # Crear y devolver el usuario autenticado
     auth_user = AuthUser(

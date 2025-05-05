@@ -13,7 +13,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 # Obtener configuración desde variables de entorno
 db_config = {
-    "host": os.environ.get("POSTGRES_HOST", "db"),
+    "host": os.environ.get("POSTGRES_HOST", "localhost"),
     "port": os.environ.get("POSTGRES_PORT", "5432"),
     "database": os.environ.get("POSTGRES_DB", "agiledb"),
     "user": os.environ.get("POSTGRES_USER", "agileuser"),
@@ -85,37 +85,48 @@ def create_test_users():
             print("Ya existen usuarios en la base de datos. No se crearán nuevos usuarios.")
             return
         
-        # Insertar usuarios
+        # Insertar usuarios con columna is_active
         users = [
-            (admin_id, "supabase-auth-id-1", "Admin", "Usuario", "admin@ingsistemas.gt", "admin", now, now),
-            (developer_id, "supabase-auth-id-2", "Desarrollador", "Ejemplo", "dev@ingsistemas.gt", "developer", now, now),
-            (product_owner_id, "supabase-auth-id-3", "Project", "Manager", "pm@ingsistemas.gt", "product_owner", now, now),
-            (member_id, "supabase-auth-id-4", "Miembro", "Regular", "member@ingsistemas.gt", "member", now, now)
+            (admin_id, "supabase-auth-id-1", "Admin", "Usuario", "admin@ingsistemas.gt", "admin", now, now, True),
+            (developer_id, "supabase-auth-id-2", "Desarrollador", "Ejemplo", "dev@ingsistemas.gt", "developer", now, now, True),
+            (product_owner_id, "supabase-auth-id-3", "Project", "Manager", "pm@ingsistemas.gt", "product_owner", now, now, True),
+            (member_id, "supabase-auth-id-4", "Miembro", "Regular", "member@ingsistemas.gt", "member", now, now, True)
         ]
         
         cur.executemany(
-            "INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, role, created_at, updated_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            "INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, role, created_at, updated_at, is_active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
             users
         )
         
-        # Insertar proyecto demo
+        # Insertar proyecto demo con is_active
         cur.execute(
-            "INSERT INTO projects (id, name, description, owner_id, created_at, updated_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s)",
-            (project_id, "Proyecto Demo", "Un proyecto de demostración", admin_id, now, now)
+            "INSERT INTO projects (id, name, description, owner_id, created_at, updated_at, is_active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (project_id, "Proyecto Demo", "Un proyecto de demostración", admin_id, now, now, True)
         )
         
+        # Verificar la estructura de la tabla project_members
+        cur.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'project_members'
+            ORDER BY ordinal_position
+        """)
+        columns = [col[0] for col in cur.fetchall()]
+        print(f"Columnas en project_members: {columns}")
+        
         # Insertar miembros del proyecto con diferentes roles
-        project_members = [
-            (project_id, admin_id, "admin"),
-            (project_id, developer_id, "developer"),
-            (project_id, product_owner_id, "product_owner"),
-            (project_id, member_id, "member")
-        ]
+        # Generar IDs para cada relación project_member
+        project_members = []
+        for user_id, role in [(admin_id, "admin"), (developer_id, "developer"), 
+                             (product_owner_id, "product_owner"), (member_id, "member")]:
+            project_member_id = str(uuid.uuid4())
+            project_members.append((project_member_id, project_id, user_id, role, now, now, True))
         
         cur.executemany(
-            "INSERT INTO project_members (project_id, user_id, role) VALUES (%s, %s, %s)",
+            "INSERT INTO project_members (id, project_id, user_id, role, created_at, updated_at, is_active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
             project_members
         )
         
@@ -127,8 +138,8 @@ def create_test_users():
         ], 1):
             story_id = str(uuid.uuid4())
             cur.execute(
-                "INSERT INTO user_stories (id, title, description, project_id, status, priority, story_points, created_at, updated_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "INSERT INTO user_stories (id, title, description, project_id, status, priority, story_points, created_at, updated_at, is_active) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     story_id,
                     title,
@@ -138,7 +149,8 @@ def create_test_users():
                     i,
                     i + 1,
                     now,
-                    now
+                    now,
+                    True
                 )
             )
         
