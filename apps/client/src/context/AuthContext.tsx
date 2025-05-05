@@ -14,6 +14,7 @@ interface AuthContextType {
   logoutFromAllDevices: () => Promise<{ success: boolean; error?: string }>;
   refreshSession: () => Promise<{ success: boolean; error?: string }>;
   checkSession: () => Promise<boolean>;
+  updateUserRole: (role: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,12 +31,29 @@ export const AuthProvider = ({ children }: { children: any }) => {
       try {
         setLoading(true);
         const currentUser = await getCurrentUser();
-        setUser(currentUser ? {
-          id: currentUser.id,
-          email: currentUser.email || '',
-          name: currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || ''
-        } : null);
+        
+        if (currentUser) {
+          // Log para diagnóstico
+          console.log('🔷 Datos de usuario cargados:', {
+            id: currentUser.id,
+            email: currentUser.email,
+            metadata: currentUser.user_metadata
+          });
+          
+          const userData = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            name: currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || '',
+            role: currentUser.user_metadata?.role || 'member'
+          };
+          
+          console.log('🔶 Usuario procesado:', userData);
+          setUser(userData);
+        } else {
+          setUser(null);
+        }
       } catch (error: any) {
+        console.error('❌ Error obteniendo sesión inicial:', error);
         setError(error.message);
       } finally {
         setLoading(false);
@@ -50,11 +68,22 @@ export const AuthProvider = ({ children }: { children: any }) => {
       (session) => {
         getCurrentUser().then(currentUser => {
           if (currentUser) {
-            setUser({
+            // Log para diagnóstico
+            console.log('🔄 Cambio de sesión detectado:', {
+              id: currentUser.id,
+              email: currentUser.email,
+              metadata: currentUser.user_metadata
+            });
+            
+            const userData = {
               id: currentUser.id,
               email: currentUser.email || '',
-              name: currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || ''
-            });
+              name: currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || '',
+              role: currentUser.user_metadata?.role || 'member'
+            };
+            
+            console.log('🔄 Usuario actualizado:', userData);
+            setUser(userData);
           }
           setLoading(false);
         });
@@ -163,6 +192,28 @@ export const AuthProvider = ({ children }: { children: any }) => {
     }
   };
 
+  const updateUserRole = async (role: string) => {
+    try {
+      setLoading(true);
+      const result = await authApi.updateUserRole(role);
+      
+      // Si la actualización es exitosa, actualizar el usuario en el estado
+      if (result.success && user) {
+        setUser({
+          ...user,
+          role
+        });
+      }
+      
+      return result;
+    } catch (error: any) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -174,7 +225,8 @@ export const AuthProvider = ({ children }: { children: any }) => {
         logout,
         logoutFromAllDevices,
         refreshSession,
-        checkSession
+        checkSession,
+        updateUserRole
       }}
     >
       {children}

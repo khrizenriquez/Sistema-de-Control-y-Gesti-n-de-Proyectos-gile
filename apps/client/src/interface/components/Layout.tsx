@@ -167,6 +167,13 @@ export const Layout: FunctionComponent<LayoutProps> = ({ children }) => {
                   <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
                     <p className="text-sm font-medium text-gray-800 dark:text-white">{user.name || 'Usuario'}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                    {user.role && (
+                      <p className="text-xs mt-1 text-blue-600 dark:text-blue-400 font-semibold">
+                        Rol: {user.role === 'admin' ? 'Administrador' : 
+                             user.role === 'developer' ? 'Desarrollador' : 
+                             user.role === 'product_owner' ? 'Product Owner' : 'Miembro'}
+                      </p>
+                    )}
                   </div>
                 )}
                 <Link href="/profile">

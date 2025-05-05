@@ -2,6 +2,7 @@ import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { User } from '../../domain/entities/User';
 import { useAuth } from '../../context/AuthContext';
+import { AuthApiAdapter } from '../../infrastructure/adapters/AuthApiAdapter';
 
 interface UserFormData {
   email: string;
@@ -38,6 +39,13 @@ const UserManagementForm = () => {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [projectRole, setProjectRole] = useState<string>('member');
   const [userAssignments, setUserAssignments] = useState<ProjectAssignment[]>([]);
+  // Nuevos estados para la edición de roles
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingUserRole, setEditingUserRole] = useState<string>('');
+  const [showRoleModal, setShowRoleModal] = useState<boolean>(false);
+  const [updatingRole, setUpdatingRole] = useState<boolean>(false);
+  
+  const authApi = new AuthApiAdapter();
 
   // Solo los administradores pueden acceder a esta página
   useEffect(() => {
@@ -123,14 +131,12 @@ const UserManagementForm = () => {
       }
       
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const token = localStorage.getItem('authToken');
       
-      // Crear el usuario a través de la API
-      const response = await fetch(`${apiUrl}/api/users`, {
+      // Crear el usuario a través de la API de registro (que no requiere autenticación)
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
       });
@@ -140,21 +146,25 @@ const UserManagementForm = () => {
         throw new Error(errorData.detail || 'Error al crear usuario');
       }
       
-      // Asignar el usuario a los proyectos seleccionados
+      // Obtener los datos del usuario creado
       const newUser = await response.json();
       
-      for (const assignment of userAssignments) {
-        await fetch(`${apiUrl}/api/projects/${assignment.projectId}/members`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            user_id: newUser.id,
-            role: assignment.role
-          })
-        });
+      // Si se necesita asignar proyectos, se debe usar el token
+      const token = localStorage.getItem('authToken');
+      if (userAssignments.length > 0 && token) {
+        for (const assignment of userAssignments) {
+          await fetch(`${apiUrl}/api/projects/${assignment.projectId}/members`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              user_id: newUser.id,
+              role: assignment.role
+            })
+          });
+        }
       }
       
       // Resetear el formulario
@@ -207,6 +217,48 @@ const UserManagementForm = () => {
 
   const handleRemoveAssignment = (projectId: string) => {
     setUserAssignments(prev => prev.filter(a => a.projectId !== projectId));
+  };
+
+  const handleEditUserRole = (user: User) => {
+    setEditingUserId(user.id);
+    setEditingUserRole(user.role || 'member');
+    setShowRoleModal(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setEditingUserRole('');
+    setShowRoleModal(false);
+  };
+
+  const handleUpdateRole = async () => {
+    if (!editingUserId || !editingUserRole) return;
+    
+    try {
+      setUpdatingRole(true);
+      setError(null);
+      
+      // Llamar al método para actualizar el rol en Supabase Auth y en la base de datos
+      const result = await authApi.updateUserRoleById(editingUserId, editingUserRole);
+      
+      if (result.success) {
+        // Actualizar la lista de usuarios localmente
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === editingUserId ? {...user, role: editingUserRole} : user
+          )
+        );
+        
+        setSuccess(`Rol de usuario actualizado correctamente a: ${editingUserRole}`);
+        handleCancelEdit(); // Cerrar el modal
+      } else {
+        setError(result.error || 'Error al actualizar el rol del usuario');
+      }
+    } catch (err: any) {
+      setError(`Error: ${err.message}`);
+    } finally {
+      setUpdatingRole(false);
+    }
   };
 
   return (
@@ -336,8 +388,8 @@ const UserManagementForm = () => {
               onChange={(e) => setProjectRole((e.target as HTMLSelectElement).value)}
               className="w-40 p-2 border rounded-md"
             >
-              <option value="owner">Owner</option>
-              <option value="admin">Admin</option>
+              <option value="developer">Dev</option>
+              <option value="product_owner">Product Owner</option>
               <option value="member">Miembro</option>
             </select>
             
@@ -413,14 +465,26 @@ const UserManagementForm = () => {
                   <tr key={user.id} className="border-t">
                     <td className="p-2">{user.name}</td>
                     <td className="p-2">{user.email}</td>
-                    <td className="p-2">{user.role}</td>
+                    <td className="p-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                        user.role === 'developer' ? 'bg-blue-100 text-blue-800' :
+                        user.role === 'product_owner' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {user.role === 'admin' ? 'Administrador' :
+                         user.role === 'developer' ? 'Desarrollador' :
+                         user.role === 'product_owner' ? 'Product Owner' :
+                         'Miembro'}
+                      </span>
+                    </td>
                     <td className="p-2 text-center">
                       <button
                         type="button"
                         className="text-blue-600 hover:text-blue-800 mr-2"
-                        onClick={() => {/* Implementar edición */}}
+                        onClick={() => handleEditUserRole(user)}
                       >
-                        Editar
+                        Cambiar Rol
                       </button>
                     </td>
                   </tr>
@@ -432,6 +496,49 @@ const UserManagementForm = () => {
           <p>No hay usuarios para mostrar.</p>
         )}
       </div>
+      
+      {/* Modal para editar el rol del usuario */}
+      {showRoleModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-semibold mb-4">Cambiar Rol de Usuario</h3>
+            
+            <p className="mb-4">
+              Selecciona el nuevo rol para el usuario:
+            </p>
+            
+            <select
+              value={editingUserRole}
+              onChange={(e) => setEditingUserRole((e.target as HTMLSelectElement).value)}
+              className="w-full p-2 border rounded-md mb-4"
+            >
+              <option value="admin">Administrador</option>
+              <option value="product_owner">Product Owner</option>
+              <option value="developer">Desarrollador</option>
+              <option value="member">Miembro</option>
+            </select>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-4 py-2 border rounded-md hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleUpdateRole}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                disabled={updatingRole}
+              >
+                {updatingRole ? 'Actualizando...' : 'Actualizar Rol'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

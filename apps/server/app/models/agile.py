@@ -2,6 +2,7 @@ from __future__ import annotations
 from sqlmodel import Field, SQLModel, Relationship
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from datetime import datetime
+from sqlalchemy.orm import relationship
 
 # Usar TYPE_CHECKING para evitar importaciones circulares
 if TYPE_CHECKING:
@@ -21,10 +22,10 @@ class UserStory(BaseModel, table=True):
     priority: Optional[int] = None
     story_points: Optional[int] = None
     
-    # Relaciones
-    project: "Project" = Relationship(back_populates="user_stories")
-    tasks: list["Task"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story")
-    sprint_backlog_items: list["SprintBacklogItem"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="story")
+    # Relaciones - usar relationship de sqlalchemy para mayor control
+    project = Relationship(sa_relationship=relationship("Project", back_populates="user_stories"))
+    tasks: List["Task"] = Relationship(sa_relationship=relationship("Task", back_populates="story"))
+    sprint_backlog_items: List["SprintBacklogItem"] = Relationship(sa_relationship=relationship("SprintBacklogItem", back_populates="story"))
 
 class Sprint(BaseModel, table=True):
     """Sprint"""
@@ -37,10 +38,10 @@ class Sprint(BaseModel, table=True):
     goal: Optional[str] = None
     status: str = "planning"  # planning, active, completed, cancelled
     
-    # Relaciones
-    project: "Project" = Relationship(back_populates="sprints")
-    backlog_items: list["SprintBacklogItem"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint")
-    metrics: list["SprintMetric"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="sprint")
+    # Relaciones - usar mismo patrón que UserStory
+    project = Relationship(sa_relationship=relationship("Project", back_populates="sprints"))
+    backlog_items: List["SprintBacklogItem"] = Relationship(sa_relationship=relationship("SprintBacklogItem", back_populates="sprint"))
+    metrics: List["SprintMetric"] = Relationship(sa_relationship=relationship("SprintMetric", back_populates="sprint"))
 
 class SprintBacklogItem(SQLModel, table=True):
     """Elemento del backlog de sprint"""
@@ -49,9 +50,9 @@ class SprintBacklogItem(SQLModel, table=True):
     sprint_id: str = Field(foreign_key="sprints.id", primary_key=True)
     story_id: str = Field(foreign_key="user_stories.id", primary_key=True)
     
-    # Relaciones
-    sprint: Sprint = Relationship(back_populates="backlog_items")
-    story: UserStory = Relationship(back_populates="sprint_backlog_items")
+    # Relaciones - usar relationship de sqlalchemy para mayor control
+    sprint = Relationship(sa_relationship=relationship("Sprint", back_populates="backlog_items"))
+    story = Relationship(sa_relationship=relationship("UserStory", back_populates="sprint_backlog_items"))
 
 class SprintMetric(BaseModel, table=True):
     """Métricas de sprint"""
@@ -64,8 +65,8 @@ class SprintMetric(BaseModel, table=True):
     avg_completion_time: Optional[float] = None  # en días
     recorded_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Relaciones
-    sprint: Sprint = Relationship(back_populates="metrics")
+    # Relaciones - usar mismo patrón que los demás modelos
+    sprint = Relationship(sa_relationship=relationship("Sprint", back_populates="metrics"))
 
 class Board(BaseModel, table=True):
     """Tablero Kanban"""
@@ -74,9 +75,9 @@ class Board(BaseModel, table=True):
     name: str
     project_id: str = Field(foreign_key="projects.id")
     
-    # Relaciones
-    project: "Project" = Relationship(back_populates="boards")
-    lists: list["List"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="board")
+    # Relaciones - usar mismo patrón que UserStory
+    project = Relationship(sa_relationship=relationship("Project", back_populates="boards"))
+    lists: List["List"] = Relationship(sa_relationship=relationship("List", back_populates="board"))
 
 class List(BaseModel, table=True):
     """Lista en un tablero Kanban"""
@@ -86,9 +87,9 @@ class List(BaseModel, table=True):
     board_id: str = Field(foreign_key="boards.id")
     position: int = 0
     
-    # Relaciones
-    board: Board = Relationship(back_populates="lists")
-    cards: list["Card"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="list")
+    # Relaciones - usar mismo patrón que los demás modelos
+    board = Relationship(sa_relationship=relationship("Board", back_populates="lists"))
+    cards: List["Card"] = Relationship(sa_relationship=relationship("Card", back_populates="list"))
 
 class Card(BaseModel, table=True):
     """Tarjeta en una lista Kanban"""
@@ -100,11 +101,11 @@ class Card(BaseModel, table=True):
     position: int = 0
     due_date: Optional[datetime] = None
     
-    # Relaciones
-    list: List = Relationship(back_populates="cards")
-    tasks: list["Task"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
-    comments: list["Comment"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
-    labels: list["CardLabel"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="card")
+    # Relaciones - usar mismo patrón que los demás modelos
+    list = Relationship(sa_relationship=relationship("List", back_populates="cards"))
+    tasks: List["Task"] = Relationship(sa_relationship=relationship("Task", back_populates="card"))
+    comments: List["Comment"] = Relationship(sa_relationship=relationship("Comment", back_populates="card"))
+    labels: List["CardLabel"] = Relationship(sa_relationship=relationship("CardLabel", back_populates="card"))
 
 class Task(BaseModel, table=True):
     """Tarea"""
@@ -118,10 +119,10 @@ class Task(BaseModel, table=True):
     assignee_id: Optional[str] = Field(default=None, foreign_key="user_profiles.id")
     estimate: Optional[int] = None  # en horas o puntos
     
-    # Relaciones
-    story: Optional[UserStory] = Relationship(back_populates="tasks")
-    card: Optional[Card] = Relationship(back_populates="tasks")
-    assignee: Optional["UserProfile"] = Relationship()
+    # Relaciones - usar relationship de sqlalchemy para mayor control
+    story = Relationship(sa_relationship=relationship("UserStory", back_populates="tasks"))
+    card = Relationship(sa_relationship=relationship("Card", back_populates="tasks"))
+    assignee = Relationship(sa_relationship=relationship("UserProfile"))
 
 class Comment(BaseModel, table=True):
     """Comentario en una tarjeta"""
@@ -131,9 +132,9 @@ class Comment(BaseModel, table=True):
     user_id: str = Field(foreign_key="user_profiles.id")
     content: str
     
-    # Relaciones
-    card: Card = Relationship(back_populates="comments")
-    user: "UserProfile" = Relationship()
+    # Relaciones - usar mismo patrón que los demás modelos
+    card = Relationship(sa_relationship=relationship("Card", back_populates="comments"))
+    user = Relationship(sa_relationship=relationship("UserProfile"))
 
 class Label(BaseModel, table=True):
     """Etiqueta"""
@@ -143,9 +144,9 @@ class Label(BaseModel, table=True):
     color: Optional[str] = None
     project_id: str = Field(foreign_key="projects.id")
     
-    # Relaciones
-    project: "Project" = Relationship()
-    card_labels: list["CardLabel"] = Relationship(sa_relationship_kwargs={"uselist": True}, back_populates="label")
+    # Relaciones - usar mismo patrón que los demás modelos
+    project = Relationship(sa_relationship=relationship("Project"))
+    card_labels: List["CardLabel"] = Relationship(sa_relationship=relationship("CardLabel", back_populates="label"))
 
 class CardLabel(SQLModel, table=True):
     """Relación entre tarjeta y etiqueta"""
@@ -154,6 +155,6 @@ class CardLabel(SQLModel, table=True):
     card_id: str = Field(foreign_key="cards.id", primary_key=True)
     label_id: str = Field(foreign_key="labels.id", primary_key=True)
     
-    # Relaciones
-    card: Card = Relationship(back_populates="labels")
-    label: Label = Relationship(back_populates="card_labels") 
+    # Relaciones - usar mismo patrón que los demás modelos
+    card = Relationship(sa_relationship=relationship("Card", back_populates="labels"))
+    label = Relationship(sa_relationship=relationship("Label", back_populates="card_labels")) 

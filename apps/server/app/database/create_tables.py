@@ -2,6 +2,17 @@ from sqlalchemy import create_engine, MetaData, Table, Column, String, Integer, 
 from sqlalchemy.ext.declarative import declarative_base
 from app.core.config import settings
 import datetime
+import logging
+from sqlalchemy import text
+from sqlmodel import SQLModel
+from app.database.db import engine
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # Engine para operaciones síncronas
 sync_database_url = settings.DATABASE_URL.replace(
@@ -183,9 +194,51 @@ activity_logs = Table(
     Column('created_at', DateTime, default=datetime.datetime.utcnow)
 )
 
+def add_role_column_if_not_exists():
+    """Agregar columna role si no existe"""
+    try:
+        with engine.connect() as conn:
+            # Verificar si la columna role existe
+            result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='user_profiles' AND column_name='role'"))
+            rows = result.fetchall()
+            
+            if len(rows) == 0:
+                # La columna role no existe, agregarla
+                logger.info("Agregando columna 'role' a la tabla user_profiles...")
+                conn.execute(text("ALTER TABLE user_profiles ADD COLUMN role VARCHAR(50) DEFAULT 'member'"))
+                conn.commit()
+                logger.info("Columna 'role' agregada correctamente")
+            else:
+                logger.info("La columna 'role' ya existe en la tabla user_profiles")
+    except Exception as e:
+        logger.error(f"Error al verificar/agregar la columna role: {e}")
+
 def create_tables():
-    """Crea todas las tablas definidas"""
-    metadata.create_all(engine)
+    """Crear tablas en la base de datos"""
+    try:
+        # Usar SQLModel para crear las tablas
+        from app.models import (
+            BaseModel, UserProfile, Project, ProjectMember,
+            UserStory, Sprint, SprintBacklogItem, SprintMetric,
+            Board, List, Card, Task, Comment, Label, CardLabel
+        )
+        
+        # Si se solicita resetear la base de datos, eliminar tablas primero
+        if settings.DATABASE_RESET:
+            logger.warning("Reseteando base de datos por configuración DATABASE_RESET=true")
+            SQLModel.metadata.drop_all(engine)
+            
+        # Crear tablas
+        metadata = SQLModel.metadata
+        metadata.create_all(engine)
+        
+        # Después de crear las tablas, asegurar que el campo role existe
+        add_role_column_if_not_exists()
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error al crear tablas: {e}")
+        raise
 
 if __name__ == '__main__':
     create_tables() 

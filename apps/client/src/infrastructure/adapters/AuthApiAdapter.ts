@@ -69,7 +69,8 @@ export class AuthApiAdapter {
       const user: User = {
         id: data.user.id,
         email: data.user.email || '',
-        name: data.user.user_metadata?.name || ''
+        name: data.user.user_metadata?.name || '',
+        role: data.user.user_metadata?.role || 'member' // Incluir el rol del usuario
       };
       
       console.log('✅ Login exitoso para:', user.email);
@@ -289,6 +290,59 @@ export class AuthApiAdapter {
     } catch (err) {
       console.error('Error al verificar sesión:', err);
       return false;
+    }
+  }
+
+  // Método para actualizar el rol en los metadatos del usuario actual
+  async updateUserRole(role: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`📝 Actualizando rol de usuario a: ${role}`);
+      
+      const { data, error } = await supabase.auth.updateUser({
+        data: { role }
+      });
+      
+      if (error) {
+        console.error('❌ Error al actualizar rol:', error.message);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('✅ Rol actualizado correctamente:', data.user?.user_metadata);
+      return { success: true };
+    } catch (err: any) {
+      console.error('❌ Error crítico en updateUserRole:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  // Método para actualizar el rol de otro usuario (por ID)
+  async updateUserRoleById(userId: string, role: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`📝 Actualizando rol de usuario ${userId} a: ${role}`);
+      
+      // Actualizar el rol en la base de datos y en los metadatos de Supabase a través de nuestra API
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch(`${apiUrl}/api/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ role, update_metadata: true })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error al actualizar rol del usuario');
+      }
+      
+      console.log('✅ Rol actualizado correctamente para usuario:', userId);
+      return { success: true };
+    } catch (err: any) {
+      console.error('❌ Error crítico en updateUserRoleById:', err);
+      return { success: false, error: err.message };
     }
   }
 } 

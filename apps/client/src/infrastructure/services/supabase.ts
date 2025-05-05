@@ -44,6 +44,13 @@ try {
         // Almacenar la sesión en localStorage para persistencia
         storage: localStorage
       },
+      global: {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      },
     });
     
     console.log('✅ Cliente Supabase inicializado correctamente');
@@ -83,6 +90,8 @@ export type AuthUser = {
     first_name?: string;
     last_name?: string;
     name?: string; // Agregamos name para ser consistentes con lo que estamos usando
+    full_name?: string; // Agregamos full_name para manejar datos existentes
+    role?: string; // Agregamos role para roles de usuario
   };
 }
 

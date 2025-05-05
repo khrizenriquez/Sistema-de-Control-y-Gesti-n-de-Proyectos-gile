@@ -1,273 +1,119 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
-from app.database.db import get_db
-from app.models.user import UserProfile
-from app.core.auth import get_current_user, AuthUser
-from typing import List
+from sqlmodel import Session
+from typing import List, Optional
 from pydantic import BaseModel
+from sqlalchemy.sql import text
+import uuid
+
+from app.database.db import get_db
+from app.core.auth import get_current_user, AuthUser
 
 router = APIRouter(
     prefix="/users",
     tags=["users"],
-    responses={404: {"description": "No encontrado"}},
+    responses={404: {"description": "Not found"}},
 )
 
-# Esquema para actualizaciones de perfil
-class UserProfileUpdate(BaseModel):
-    first_name: str
-    last_name: str
-    bio: str = None
-    avatar_url: str = None
-
-# Esquema para la respuesta de perfil
-class UserProfileResponse(BaseModel):
-    id: str
-    auth_id: str
-    first_name: str
-    last_name: str
-    email: str
-    avatar_url: str = None
-    bio: str = None
-    role: str = "member"
-
-# Esquema para actualización de rol
-class UserRoleUpdate(BaseModel):
-    role: str
-
-@router.get("/me", response_model=UserProfileResponse)
-async def get_my_profile(
-    current_user: AuthUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Obtiene el perfil del usuario autenticado"""
-    profile = db.exec(
-        select(UserProfile).where(UserProfile.auth_id == current_user.id)
-    ).first()
-    
-    if not profile:
-        # Si el perfil no existe en la base de datos, lo creamos automáticamente
-        # Esto sincroniza usuarios de Supabase con nuestra base de datos
-        profile = UserProfile(
-            auth_id=current_user.id,
-            email=current_user.email,
-            first_name=current_user.user_metadata.get("first_name", "") if current_user.user_metadata else "",
-            last_name=current_user.user_metadata.get("last_name", "") if current_user.user_metadata else ""
-        )
-        db.add(profile)
-        db.commit()
-        db.refresh(profile)
-    
-    return UserProfileResponse(
-        id=profile.id,
-        auth_id=profile.auth_id,
-        first_name=profile.first_name,
-        last_name=profile.last_name,
-        email=profile.email,
-        avatar_url=profile.avatar_url,
-        bio=profile.bio
-    )
-
-@router.put("/me", response_model=UserProfileResponse)
-async def update_my_profile(
-    profile_update: UserProfileUpdate,
-    current_user: AuthUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Actualiza el perfil del usuario autenticado"""
-    profile = db.exec(
-        select(UserProfile).where(UserProfile.auth_id == current_user.id)
-    ).first()
-    
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Perfil no encontrado"
-        )
-    
-    # Actualizar los campos
-    profile.first_name = profile_update.first_name
-    profile.last_name = profile_update.last_name
-    if profile_update.bio is not None:
-        profile.bio = profile_update.bio
-    if profile_update.avatar_url is not None:
-        profile.avatar_url = profile_update.avatar_url
-    
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-    
-    return UserProfileResponse(
-        id=profile.id,
-        auth_id=profile.auth_id,
-        first_name=profile.first_name,
-        last_name=profile.last_name,
-        email=profile.email,
-        avatar_url=profile.avatar_url,
-        bio=profile.bio
-    )
-
-@router.put("/me/role", response_model=UserProfileResponse)
-async def update_my_role(
-    role_update: UserRoleUpdate,
-    current_user: AuthUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Actualiza el rol del usuario autenticado"""
-    profile = db.exec(
-        select(UserProfile).where(UserProfile.auth_id == current_user.id)
-    ).first()
-    
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Perfil no encontrado"
-        )
-    
-    # Validar rol
-    valid_roles = ["admin", "developer", "product_owner", "member"]
-    if role_update.role not in valid_roles:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Rol inválido. Debe ser uno de: {', '.join(valid_roles)}"
-        )
-    
-    # Actualizar el rol
-    profile.role = role_update.role
-    
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-    
-    return UserProfileResponse(
-        id=profile.id,
-        auth_id=profile.auth_id,
-        first_name=profile.first_name,
-        last_name=profile.last_name,
-        email=profile.email,
-        avatar_url=profile.avatar_url,
-        bio=profile.bio,
-        role=profile.role
-    )
-
-# Endpoint para crear un nuevo usuario (solo para administradores)
-class CreateUserRequest(BaseModel):
+class UserCreate(BaseModel):
     email: str
     password: str
     first_name: str
     last_name: str
-    role: str
-    bio: str = None
-    avatar_url: str = None
+    role: str = "member"
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
 
-@router.post("/", response_model=UserProfileResponse)
-async def create_user(
-    user_data: CreateUserRequest,
-    current_user: AuthUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    first_name: str
+    last_name: str
+    name: Optional[str] = None  # Computed field
+    role: Optional[str] = "member"
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+@router.get("/", response_model=List[UserResponse])
+async def list_users(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user)
 ):
-    """Crea un nuevo usuario (solo administradores)"""
-    # Verificar que el usuario actual es administrador
-    admin_profile = db.exec(
-        select(UserProfile).where(UserProfile.auth_id == current_user.id)
-    ).first()
-    
-    if not admin_profile or admin_profile.role != "admin":
+    """Lista todos los usuarios registrados"""
+    try:
+        # Usar SQL directo para evitar problemas con los mapeos ORM
+        result = db.execute(text("""
+            SELECT id, email, first_name, last_name, 
+                   bio, avatar_url, role
+            FROM user_profiles
+        """))
+        
+        users = []
+        for row in result:
+            # Convertir filas SQL a diccionarios
+            user_dict = {key: row[key] for key in row.keys()}
+            # Añadir el campo computado 'name'
+            user_dict['name'] = f"{user_dict['first_name']} {user_dict['last_name']}"
+            users.append(user_dict)
+            
+        return users
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al listar usuarios: {str(e)}"
+        )
+
+@router.post("/", response_model=UserResponse)
+async def create_user(
+    user_data: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user)
+):
+    """Crea un nuevo usuario (requiere ser administrador)"""
+    # Solo los administradores pueden crear usuarios
+    if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo los administradores pueden crear usuarios"
         )
     
-    # Validar rol
-    valid_roles = ["admin", "developer", "product_owner", "member"]
-    if user_data.role not in valid_roles:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Rol inválido. Debe ser uno de: {', '.join(valid_roles)}"
-        )
-    
-    # Crear usuario en Supabase
-    # Nota: Esto requiere configuración adicional y una instancia de cliente Supabase con clave de servicio
-    # Aquí solo mostramos un ejemplo conceptual
     try:
-        # En una implementación real, usarías el SDK de Supabase para Python o llamadas a la API
-        # con la clave service_role_key que tiene permisos para crear usuarios
+        # Usar SQL directo para evitar problemas con los mapeos ORM
+        query = text("""
+            INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, bio, avatar_url, role, created_at, updated_at, is_active)
+            VALUES (:id, :auth_id, :first_name, :last_name, :email, :bio, :avatar_url, :role, NOW(), NOW(), true)
+            RETURNING id, email, first_name, last_name, bio, avatar_url, role
+        """)
         
-        # Ejemplo (conceptual):
-        # supabase_client = create_client(supabase_url, supabase_service_key)
-        # auth_user = supabase_client.auth.admin.create_user({
-        #    "email": user_data.email,
-        #    "password": user_data.password,
-        #    "user_metadata": {
-        #        "first_name": user_data.first_name,
-        #        "last_name": user_data.last_name
-        #    }
-        # })
+        result = db.execute(query, {
+            "id": str(uuid.uuid4()),
+            "auth_id": str(uuid.uuid4()),  # En una implementación real, este vendría de Supabase
+            "first_name": user_data.first_name,
+            "last_name": user_data.last_name,
+            "email": user_data.email,
+            "bio": user_data.bio,
+            "avatar_url": user_data.avatar_url,
+            "role": user_data.role
+        })
         
-        # Simulamos la respuesta para este ejemplo
-        auth_user_id = "simulado-auth-id-" + user_data.email
-        
-        # Crear perfil en nuestra base de datos
-        new_profile = UserProfile(
-            auth_id=auth_user_id,
-            email=user_data.email,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            bio=user_data.bio,
-            avatar_url=user_data.avatar_url,
-            role=user_data.role
-        )
-        
-        db.add(new_profile)
         db.commit()
-        db.refresh(new_profile)
         
-        return UserProfileResponse(
-            id=new_profile.id,
-            auth_id=new_profile.auth_id,
-            first_name=new_profile.first_name,
-            last_name=new_profile.last_name,
-            email=new_profile.email,
-            avatar_url=new_profile.avatar_url,
-            bio=new_profile.bio,
-            role=new_profile.role
-        )
+        # Obtener el usuario insertado
+        user_record = result.fetchone()
+        if not user_record:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al crear usuario: no se pudo recuperar el registro creado"
+            )
+            
+        # Convertir fila SQL a diccionario
+        user_dict = {key: user_record[key] for key in user_record.keys()}
+        # Añadir el campo computado 'name'
+        user_dict['name'] = f"{user_dict['first_name']} {user_dict['last_name']}"
         
+        return user_dict
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al crear usuario: {str(e)}"
-        )
-
-@router.get("/", response_model=List[UserProfileResponse])
-async def list_users(
-    current_user: AuthUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Listar todos los usuarios (solo administradores)"""
-    # Verificar que el usuario actual es administrador
-    admin_profile = db.exec(
-        select(UserProfile).where(UserProfile.auth_id == current_user.id)
-    ).first()
-    
-    if not admin_profile or admin_profile.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo los administradores pueden listar usuarios"
-        )
-    
-    # Obtener todos los perfiles
-    profiles = db.exec(select(UserProfile)).all()
-    
-    return [
-        UserProfileResponse(
-            id=profile.id,
-            auth_id=profile.auth_id,
-            first_name=profile.first_name,
-            last_name=profile.last_name,
-            email=profile.email,
-            avatar_url=profile.avatar_url,
-            bio=profile.bio,
-            role=profile.role
-        )
-        for profile in profiles
-    ] 
+        ) 
