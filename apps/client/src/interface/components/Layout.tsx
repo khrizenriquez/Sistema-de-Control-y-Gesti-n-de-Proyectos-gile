@@ -167,6 +167,13 @@ export const Layout: FunctionComponent<LayoutProps> = ({ children }) => {
                   <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
                     <p className="text-sm font-medium text-gray-800 dark:text-white">{user.name || 'Usuario'}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                    {user.role && (
+                      <p className="text-xs mt-1 text-blue-600 dark:text-blue-400 font-semibold">
+                        Rol: {user.role === 'admin' ? 'Administrador' : 
+                             user.role === 'developer' ? 'Desarrollador' : 
+                             user.role === 'product_owner' ? 'Product Owner' : 'Miembro'}
+                      </p>
+                    )}
                   </div>
                 )}
                 <Link href="/profile">
@@ -253,6 +260,25 @@ export const Layout: FunctionComponent<LayoutProps> = ({ children }) => {
                   </div>
                 </Link>
               </li>
+              
+              {/* Sección de administración - solo visible para administradores */}
+              {user?.role === 'admin' && (
+                <>
+                  <div className="mt-6 mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <h3 className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Administración
+                    </h3>
+                  </div>
+                  <li>
+                    <Link href="/admin/users">
+                      <div className="flex items-center p-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                        <IconUsers size={20} className="mr-3" />
+                        <span>Gestión de Usuarios</span>
+                      </div>
+                    </Link>
+                  </li>
+                </>
+              )}
               
               <div className="mt-6 mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
                 <h3 className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

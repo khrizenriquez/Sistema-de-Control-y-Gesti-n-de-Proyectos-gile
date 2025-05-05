@@ -49,13 +49,13 @@ if [[ -n "$POSTGRES_HOST" && -n "$POSTGRES_USER" && -n "$POSTGRES_PASSWORD" && -
     wait_for_postgres
 fi
 
+# Ejecutar migraciones de Alembic
+echo "Ejecutando migraciones de Alembic..."
+alembic upgrade head
+
 # Crear tablas
 echo "Creando tablas en la base de datos..."
 python -c "from app.database.create_tables import create_tables; create_tables()"
-
-# Add after creating tables and before seeding users
-echo "Ejecutando script de migración para añadir columna creator_id..."
-python /app/migrations/add_creator_id.py
 
 # Crear script de usuarios de prueba
 cat > /app/seed_users.py << 'EOF'
@@ -116,113 +116,8 @@ if "DATABASE_URL" in os.environ:
     
     db_config["database"] = db_name
 
-def create_test_users():
-    """Crear usuarios de prueba con diferentes roles"""
-    
-    # Generar IDs únicos
-    admin_id = str(uuid.uuid4())
-    developer_id = str(uuid.uuid4())
-    product_owner_id = str(uuid.uuid4())
-    member_id = str(uuid.uuid4())
-    
-    # Crear proyecto demo
-    project_id = str(uuid.uuid4())
-    
-    # Timestamp actual para created_at y updated_at
-    now = datetime.utcnow()
-    
-    conn = None
-    try:
-        # Conectar a la base de datos
-        conn = psycopg2.connect(**db_config)
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cur = conn.cursor()
-        
-        # Verificar si ya existen usuarios
-        cur.execute("SELECT COUNT(*) FROM user_profiles")
-        user_count = cur.fetchone()[0]
-        
-        if user_count > 0:
-            print("Ya existen usuarios en la base de datos. No se crearán nuevos usuarios.")
-            return
-        
-        # Insertar usuarios con columna is_active
-        users = [
-            (admin_id, "supabase-auth-id-1", "Admin", "Usuario", "admin@ingsistemas.gt", "admin", now, now, True),
-            (developer_id, "supabase-auth-id-2", "Desarrollador", "Ejemplo", "dev@ingsistemas.gt", "developer", now, now, True),
-            (product_owner_id, "supabase-auth-id-3", "Project", "Manager", "pm@ingsistemas.gt", "product_owner", now, now, True),
-            (member_id, "supabase-auth-id-4", "Miembro", "Regular", "member@ingsistemas.gt", "member", now, now, True)
-        ]
-        
-        cur.executemany(
-            "INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, role, created_at, updated_at, is_active) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            users
-        )
-        
-        # Insertar proyecto demo con is_active
-        cur.execute(
-            "INSERT INTO projects (id, name, description, owner_id, created_at, updated_at, is_active) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (project_id, "Proyecto Demo", "Un proyecto de demostración", admin_id, now, now, True)
-        )
-        
-        # Insertar miembros del proyecto con diferentes roles
-        project_members = [
-            (project_id, admin_id, "admin"),
-            (project_id, developer_id, "developer"),
-            (project_id, product_owner_id, "product_owner"),
-            (project_id, member_id, "member")
-        ]
-        
-        cur.executemany(
-            "INSERT INTO project_members (project_id, user_id, role) VALUES (%s, %s, %s)",
-            project_members
-        )
-        
-        # Crear tres historias de usuario básicas
-        for i, title in enumerate([
-            "Como usuario quiero iniciar sesión",
-            "Como admin quiero gestionar usuarios",
-            "Como usuario quiero ver mi tablero"
-        ], 1):
-            story_id = str(uuid.uuid4())
-            cur.execute(
-                "INSERT INTO user_stories (id, title, description, project_id, status, priority, story_points, created_at, updated_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                (
-                    story_id,
-                    title,
-                    f"Descripción de {title}",
-                    project_id,
-                    "backlog",
-                    i,
-                    i + 1,
-                    now,
-                    now
-                )
-            )
-        
-        # Commit y cerrar
-        conn.commit()
-        print("Usuarios de prueba creados exitosamente:")
-        print("- Admin (admin@ingsistemas.gt, rol: admin)")
-        print("- Desarrollador (dev@ingsistemas.gt, rol: developer)")
-        print("- Product Owner (pm@ingsistemas.gt, rol: product_owner)")
-        print("- Miembro (member@ingsistemas.gt, rol: member)")
-        
-    except Exception as e:
-        print(f"Error al crear usuarios de prueba: {e}")
-    finally:
-        if conn:
-            conn.close()
-
-if __name__ == "__main__":
-    create_test_users()
 EOF
 
-# Ejecutar script de usuarios de prueba
-echo "Creando datos de prueba (usuarios por roles)..."
 python /app/seed_users.py
 
 # Ejecutar script de actualización de roles

@@ -10,9 +10,9 @@ python-jose==3.3.0
 passlib==1.7.4
 bcrypt==4.0.1
 pytest==7.4.3
-httpx==0.25.2
+httpx==0.24.1
 asyncpg==0.29.0
-supabase==2.3.5
+supabase==1.0.4
 psycopg2-binary==2.9.9
 uuid==1.30
 typing-extensions==4.9.0

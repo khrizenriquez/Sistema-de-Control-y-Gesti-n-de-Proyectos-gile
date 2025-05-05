@@ -5,6 +5,7 @@ from typing import List
 import os
 import subprocess
 import logging
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.database.db import create_db_and_tables
@@ -27,57 +28,63 @@ app = FastAPI(
 )
 
 # Configuración de CORS
+origins = ["*"]  # Allow all origins for debugging
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, restringir a dominios específicos
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-# Eventos de inicio y cierre
-@app.on_event("startup")
-async def on_startup():
-    logger.info("Iniciando servidor...")
-    
-    try:
-        # En lugar de intentar verificar si las tablas existen mediante operaciones async,
-        # simplemente intentaremos crear las tablas directamente.
-        # Si ya existen, SQLAlchemy manejará esto sin problemas
-        logger.info("Creando tablas si no existen...")
-        create_db_and_tables()
-        logger.info("Operación de creación de tablas completada")
-    except Exception as e:
-        logger.error(f"Error al crear tablas: {str(e)}")
-    
-    # Cargar datos de prueba si está habilitado
-    load_test_data = getattr(settings, "LOAD_TEST_DATA", "false")
-    if load_test_data and str(load_test_data).lower() == "true":
-        logger.info("Cargando datos de prueba...")
-        try:
-            from app.database.seed import seed_data
-            success = await seed_data()
-            if success:
-                logger.info("Datos de prueba cargados exitosamente")
-            else:
-                logger.info("No se cargaron datos de prueba (posiblemente ya existan)")
-        except Exception as e:
-            logger.error(f"Error cargando datos de prueba: {str(e)}")
-            logger.info("Continuando sin datos de prueba")
-
-@app.get("/")
-async def root():
-    return {"message": "Bienvenido al API de Gestión de Proyectos Ágiles"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "version": settings.PROJECT_VERSION}
-
 # Importar routers
-from app.routers import users
-# from app.routers import projects, tasks
+from app.routers import users, auth
+# Importar router de proyectos si existe
+# try:
+#     from app.routers import projects
+#     app.include_router(projects.router, prefix=settings.API_PREFIX)
+#     logger.info("Router de proyectos incluido correctamente")
+# except ImportError:
+#     logger.warning("Router de proyectos no encontrado o con errores, no se incluirá en la API")
 
 # Incluir routers en la aplicación
 app.include_router(users.router, prefix=settings.API_PREFIX)
-# app.include_router(projects.router, prefix=settings.API_PREFIX)
-# app.include_router(tasks.router, prefix=settings.API_PREFIX) 
+app.include_router(auth.router, prefix=settings.API_PREFIX)
+
+@app.on_event("startup")
+async def on_startup():
+    logger.info("Iniciando servidor...")
+    logger.info("Creando tablas si no existen...")
+    create_db_and_tables()
+    logger.info("Operación de creación de tablas completada")
+    
+    # Ejecutar SQL directo para asegurar que user_profiles tiene la columna role
+    try:
+        from app.database.db import engine
+        with engine.connect() as conn:
+            # Verificar si la columna role existe
+            result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='user_profiles' AND column_name='role'"))
+            if result.rowcount == 0:
+                # La columna role no existe, agregarla
+                logger.info("Agregando columna 'role' a la tabla user_profiles...")
+                conn.execute(text("ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'member'"))
+                conn.commit()
+                logger.info("Columna 'role' agregada correctamente")
+            else:
+                logger.info("La columna 'role' ya existe en la tabla user_profiles")
+    except Exception as e:
+        logger.error(f"Error actualizando el esquema de la base de datos: {str(e)}")
+
+@app.get("/")
+async def root():
+    return {
+        "message": "Bienvenido a la API de Gestión de Proyectos Ágiles",
+        "docs": "/docs",
+        "status": "online",
+    }
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "version": settings.PROJECT_VERSION} 

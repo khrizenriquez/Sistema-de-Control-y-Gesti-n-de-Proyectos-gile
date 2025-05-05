@@ -17,6 +17,7 @@ class Settings(BaseModel):
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/agile_db"
     )
+    DATABASE_RESET: bool = os.getenv("DATABASE_RESET", "false").lower() == "true"
     
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
