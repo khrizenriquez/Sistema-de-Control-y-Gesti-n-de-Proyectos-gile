@@ -87,15 +87,15 @@ def create_test_users():
         
         # Insertar usuarios
         users = [
-            (admin_id, "supabase-auth-id-1", "Admin", "Usuario", "admin@example.com", now, now),
-            (developer_id, "supabase-auth-id-2", "Desarrollador", "Ejemplo", "dev@example.com", now, now),
-            (product_owner_id, "supabase-auth-id-3", "Project", "Manager", "pm@example.com", now, now),
-            (member_id, "supabase-auth-id-4", "Miembro", "Regular", "member@example.com", now, now)
+            (admin_id, "supabase-auth-id-1", "Admin", "Usuario", "admin@ingsistemas.gt", "admin", now, now),
+            (developer_id, "supabase-auth-id-2", "Desarrollador", "Ejemplo", "dev@ingsistemas.gt", "developer", now, now),
+            (product_owner_id, "supabase-auth-id-3", "Project", "Manager", "pm@ingsistemas.gt", "product_owner", now, now),
+            (member_id, "supabase-auth-id-4", "Miembro", "Regular", "member@ingsistemas.gt", "member", now, now)
         ]
         
         cur.executemany(
-            "INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, created_at, updated_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            "INSERT INTO user_profiles (id, auth_id, first_name, last_name, email, role, created_at, updated_at) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
             users
         )
         
@@ -145,10 +145,10 @@ def create_test_users():
         # Commit y cerrar
         conn.commit()
         print("Usuarios de prueba creados exitosamente:")
-        print("- Admin (admin@example.com, rol: admin)")
-        print("- Desarrollador (dev@example.com, rol: developer)")
-        print("- Product Owner (pm@example.com, rol: product_owner)")
-        print("- Miembro (member@example.com, rol: member)")
+        print("- Admin (admin@ingsistemas.gt, rol: admin)")
+        print("- Desarrollador (dev@ingsistemas.gt, rol: developer)")
+        print("- Product Owner (pm@ingsistemas.gt, rol: product_owner)")
+        print("- Miembro (member@ingsistemas.gt, rol: member)")
         
     except Exception as e:
         print(f"Error al crear usuarios de prueba: {e}")
