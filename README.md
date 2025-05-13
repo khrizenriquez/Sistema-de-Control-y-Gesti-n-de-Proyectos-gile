@@ -34,6 +34,7 @@ El script acepta las siguientes opciones:
 
 - `--build`: Reconstruye las imágenes de los contenedores antes de iniciarlos
 - `--dev`: Inicia el cliente en modo desarrollo con volúmenes montados para actualización en tiempo real
+- `--no-pgadmin`: Inicia el entorno sin el contenedor de pgAdmin
 
 Ejemplos:
 ```bash
@@ -43,8 +44,14 @@ Ejemplos:
 # Iniciar en modo desarrollo (monta volúmenes para el cliente)
 ./start-environment.sh --dev
 
+# Iniciar sin el contenedor de pgAdmin
+./start-environment.sh --no-pgadmin
+
 # Combinar opciones
 ./start-environment.sh --build --dev
+./start-environment.sh --build --no-pgadmin
+./start-environment.sh --dev --no-pgadmin
+./start-environment.sh --build --dev --no-pgadmin
 ```
 
 ## Modos de ejecución
@@ -98,11 +105,11 @@ Al ejecutar el proyecto con éxito, deberías ver los siguientes contenedores en
 
 ![Contenedores del proyecto](https://github.com/user-attachments/assets/caebe691-ad39-4724-8368-d6db63bb240c)
 
-Como se muestra en la imagen, el sistema se compone de 4 contenedores principales:
+Como se muestra en la imagen, el sistema se compone de 3-4 contenedores principales:
 - **client**: Frontend en Preact (puerto 3000)
 - **server**: Backend en FastAPI (puerto 8000)
 - **db**: Base de datos PostgreSQL (puerto 5432)
-- **pgadmin**: Administrador de PostgreSQL (puerto 5050)
+- **pgadmin**: Administrador de PostgreSQL (puerto 5050) - *opcional si se usa `--no-pgadmin`*
 
 ### Credenciales de pgAdmin
 

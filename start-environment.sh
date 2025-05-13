@@ -9,6 +9,26 @@ YELLOW="\033[1;33m"
 RED="\033[0;31m"
 NC="\033[0m" # No Color
 
+# Flags para opciones
+BUILD=false
+DEV=false
+NO_PGADMIN=false
+
+# Procesar argumentos
+for arg in "$@"; do
+  case $arg in
+    --build)
+      BUILD=true
+      ;;
+    --dev)
+      DEV=true
+      ;;
+    --no-pgadmin)
+      NO_PGADMIN=true
+      ;;
+  esac
+done
+
 # Función para imprimir mensajes
 print_message() {
   echo -e "${GREEN}[INFO]${NC} $1"
@@ -42,7 +62,7 @@ PGADMIN_EMAIL=${PGADMIN_EMAIL:-admin@example.com}
 PGADMIN_PASSWORD=${PGADMIN_PASSWORD:-admin}
 
 # Construir imágenes si el flag --build está presente
-if [[ "$*" == *"--build"* ]]; then
+if [ "$BUILD" = true ]; then
   print_message "Construyendo imagen del servidor..."
   cd apps/server && podman build -t server-app . && cd ../../
   
@@ -65,15 +85,19 @@ podman run -d \
 print_message "Esperando a que la base de datos esté lista..."
 sleep 5
 
-# Iniciar pgAdmin
-print_message "Iniciando pgAdmin..."
-podman run -d \
-  --name pgadmin \
-  --network=agile-network \
-  -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
-  -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
-  -p 5050:80 \
-  dpage/pgadmin4
+# Iniciar pgAdmin solo si no se especifica --no-pgadmin
+if [ "$NO_PGADMIN" = false ]; then
+  print_message "Iniciando pgAdmin..."
+  podman run -d \
+    --name pgadmin \
+    --network=agile-network \
+    -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
+    -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
+    -p 5050:80 \
+    dpage/pgadmin4
+else
+  print_message "Opción --no-pgadmin detectada, omitiendo pgAdmin..."
+fi
 
 # Iniciar servidor
 print_message "Iniciando servidor backend..."
@@ -86,7 +110,7 @@ podman run -d \
 
 # Iniciar cliente
 print_message "Iniciando cliente frontend..."
-if [[ "$*" == *"--dev"* ]]; then
+if [ "$DEV" = true ]; then
   # Modo desarrollo con volúmenes montados
   print_message "Iniciando cliente en modo desarrollo con volúmenes montados..."
   podman run -d \
@@ -128,7 +152,9 @@ echo ""
 print_message "🚀 Entorno listo! Los servicios están disponibles en:"
 echo "  📊 Backend API: http://localhost:8000"
 echo "  🖥️ Frontend: http://localhost:3000"
-echo "  🛢️ pgAdmin: http://localhost:5050"
+if [ "$NO_PGADMIN" = false ]; then
+  echo "  🛢️ pgAdmin: http://localhost:5050"
+fi
 echo ""
 print_message "Usuarios de prueba disponibles:"
 echo "  👤 Admin: admin@example.com (rol: admin)"
@@ -142,9 +168,17 @@ echo ""
 print_message "Para detener todos los contenedores ejecutar: podman rm -f db pgadmin server client"
 echo ""
 
-# Verificar si todos los contenedores están en ejecución
-if podman ps | grep -q "server" && podman ps | grep -q "client" && podman ps | grep -q "db"; then
-  print_message "✅ Todos los servicios están en ejecución."
+# Modificar verificación para considerar que pgAdmin podría no estar presente
+services_running=true
+podman ps | grep -q "server" || services_running=false
+podman ps | grep -q "client" || services_running=false
+podman ps | grep -q "db" || services_running=false
+if [ "$NO_PGADMIN" = false ]; then
+  podman ps | grep -q "pgadmin" || services_running=false
+fi
+
+if [ "$services_running" = true ]; then
+  print_message "✅ Todos los servicios solicitados están en ejecución."
 else
   print_warning "⚠️ Alguno de los servicios no se inició correctamente. Revisa los logs para más detalles."
 fi 
