@@ -79,7 +79,7 @@ podman run -d \
   -e POSTGRES_PASSWORD=${DB_PASSWORD} \
   -e POSTGRES_DB=agiledb \
   -p 5432:5432 \
-  postgres:15-alpine
+  docker.io/library/postgres:15-alpine
 
 # Esperar a que la base de datos esté lista
 print_message "Esperando a que la base de datos esté lista..."
@@ -94,7 +94,7 @@ if [ "$NO_PGADMIN" = false ]; then
     -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
     -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
     -p 5050:80 \
-    dpage/pgadmin4
+    docker.io/dpage/pgadmin4
 else
   print_message "Opción --no-pgadmin detectada, omitiendo pgAdmin..."
 fi
@@ -170,15 +170,33 @@ echo ""
 
 # Modificar verificación para considerar que pgAdmin podría no estar presente
 services_running=true
-podman ps | grep -q "server" || services_running=false
-podman ps | grep -q "client" || services_running=false
-podman ps | grep -q "db" || services_running=false
+missing_services=""
+
+if ! podman ps | grep -q "server"; then 
+  services_running=false
+  missing_services="server $missing_services"
+fi
+
+if ! podman ps | grep -q "client"; then
+  services_running=false
+  missing_services="client $missing_services"
+fi
+
+if ! podman ps | grep -q "db"; then
+  services_running=false
+  missing_services="db $missing_services"
+fi
+
 if [ "$NO_PGADMIN" = false ]; then
-  podman ps | grep -q "pgadmin" || services_running=false
+  if ! podman ps | grep -q "pgadmin"; then
+    services_running=false
+    missing_services="pgadmin $missing_services"
+  fi
 fi
 
 if [ "$services_running" = true ]; then
   print_message "✅ Todos los servicios solicitados están en ejecución."
 else
-  print_warning "⚠️ Alguno de los servicios no se inició correctamente. Revisa los logs para más detalles."
+  print_warning "⚠️ Los siguientes servicios no se iniciaron correctamente: ${missing_services}"
+  print_warning "Revisa los logs para más detalles (podman logs <nombre-servicio>)."
 fi 
