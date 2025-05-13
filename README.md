@@ -1,5 +1,7 @@
 # Sistema de Control y Gestión de Proyectos Ágiles
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/khrizenriquez/Sistema-de-Control-y-Gesti-n-de-Proyectos-gile)
+
 Sistema completo para la gestión de proyectos ágiles con metodologías modernas, compuesto por un cliente web (frontend), una API REST (backend) y una base de datos PostgreSQL.
 
 ## Documentación Avanzada
