@@ -1,0 +1,25 @@
+FROM node:22-alpine
+WORKDIR /app
+
+RUN npm install -g pnpm
+
+# Solo copiamos los archivos de configuración primero para aprovechar la caché
+COPY package.json pnpm-lock.yaml tsconfig*.json vite.config.* tailwind.config.js postcss.config.js ./
+RUN pnpm install
+
+# Copiamos los archivos fuente
+COPY src/ ./src/
+COPY public/ ./public/
+COPY index.html ./
+
+# Asegurarnos que el archivo .env se copia si existe (para desarrollo)
+COPY .env* ./
+
+# Variable de entorno para determinar si estamos en modo desarrollo
+ENV NODE_ENV=development
+
+# Expose 5173 for Vite dev server (default port)
+EXPOSE 5173
+
+# Comando para iniciar el servidor de desarrollo con carga de variables de entorno
+CMD ["pnpm", "run", "dev", "--host", "0.0.0.0"] 

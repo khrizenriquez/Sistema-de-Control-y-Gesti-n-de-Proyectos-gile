@@ -1,5 +1,15 @@
 import { render } from 'preact'
-import './index.css'
-import { App } from './app.tsx'
+import './style.css'
+import { App } from './app'
+import { ThemeProvider } from './context/ThemeContext'
+import { AuthProvider } from './context/AuthContext'
 
-render(<App />, document.getElementById('app')!)
+// Renderizar la aplicación
+render(
+  <ThemeProvider>
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </ThemeProvider>,
+  document.getElementById('app') as HTMLElement
+)

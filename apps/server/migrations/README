@@ -1,0 +1,22 @@
+# Migraciones con Alembic
+
+Este directorio contiene las migraciones de la base de datos usando Alembic.
+
+## Comandos básicos
+
+```bash
+# Crear una nueva migración
+alembic revision --autogenerate -m "descripción"
+
+# Actualizar la base de datos a la última versión
+alembic upgrade head
+
+# Volver a la versión anterior
+alembic downgrade -1
+
+# Ver estado actual
+alembic current
+
+# Ver historial de migraciones
+alembic history
+``` 

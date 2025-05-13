@@ -1,43 +1,64 @@
-import { useState } from 'preact/hooks'
-import preactLogo from './assets/preact.svg'
-import viteLogo from '/vite.svg'
-import './app.css'
+import { Route, Switch } from 'wouter-preact';
+import { LoginPage } from './interface/pages/LoginPage';
+import { RegisterPage } from './interface/pages/RegisterPage';
+import { DashboardPage } from './interface/pages/DashboardPage';
+import { BoardPage } from './interface/pages/BoardPage';
+import { ProfilePage } from './interface/pages/ProfilePage';
+import { BoardsPage } from './interface/pages/BoardsPage';
+import { BoardSettingsPage } from './interface/pages/BoardSettingsPage';
+import { CreateBoardPage } from './interface/pages/CreateBoardPage';
+import { BoardCalendarPage } from './interface/pages/BoardCalendarPage';
+import { TeamsPage } from './interface/pages/TeamsPage';
+import { TeamPage } from './interface/pages/TeamPage';
+import { NotificationsPage } from './interface/pages/NotificationsPage';
+import { Layout } from './interface/components/Layout';
+import { FunctionComponent } from 'preact';
+import { ProtectedRoute } from './interface/components/ProtectedRoute';
+import { EnvWarning } from './components/EnvWarning';
+import AdminUsersPage from './pages/AdminUsersPage';
+import './style.css'
+
+// Componente para rutas que requieren autenticación y tienen el Layout
+const AuthRouteWithLayout = ({ component: Component, ...rest }: { component: FunctionComponent<any>, path: string }) => {
+  return (
+    <ProtectedRoute
+      {...rest}
+      component={(props: any) => (
+        <Layout>
+          <Component {...props} />
+        </Layout>
+      )}
+    />
+  );
+};
 
 export function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} class="logo" alt="Vite logo" />
-        </a>
-        <a href="https://preactjs.com" target="_blank">
-          <img src={preactLogo} class="logo preact" alt="Preact logo" />
-        </a>
-      </div>
-      <h1>Vite + Preact</h1>
-      <div class="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/app.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p>
-        Check out{' '}
-        <a
-          href="https://preactjs.com/guide/v10/getting-started#create-a-vite-powered-preact-app"
-          target="_blank"
-        >
-          create-preact
-        </a>
-        , the official Preact + Vite starter
-      </p>
-      <p class="read-the-docs">
-        Click on the Vite and Preact logos to learn more
-      </p>
-    </>
-  )
+    <div className="min-h-screen">
+      <Switch>
+        {/* Rutas públicas sin Layout */}
+        <Route path="/" component={LoginPage} />
+        <Route path="/login" component={LoginPage} />
+        <Route path="/register" component={RegisterPage} />
+        
+        {/* Rutas protegidas con Layout */}
+        <AuthRouteWithLayout path="/dashboard" component={DashboardPage} />
+        <AuthRouteWithLayout path="/profile" component={ProfilePage} />
+        <AuthRouteWithLayout path="/boards" component={BoardsPage} />
+        <AuthRouteWithLayout path="/boards/new" component={CreateBoardPage} />
+        <AuthRouteWithLayout path="/boards/calendar" component={BoardCalendarPage} />
+        <AuthRouteWithLayout path="/boards/:id" component={BoardPage} />
+        <AuthRouteWithLayout path="/boards/:id/settings" component={BoardSettingsPage} />
+        <AuthRouteWithLayout path="/boards/:id/calendar" component={BoardCalendarPage} />
+        <AuthRouteWithLayout path="/teams" component={TeamsPage} />
+        <AuthRouteWithLayout path="/teams/:id" component={TeamPage} />
+        <AuthRouteWithLayout path="/teams/:id/:tab" component={TeamPage} />
+        <AuthRouteWithLayout path="/notifications" component={NotificationsPage} />
+        <AuthRouteWithLayout path="/admin/users" component={AdminUsersPage} />
+      </Switch>
+      
+      {/* Componente de utilidad */}
+      <EnvWarning />
+    </div>
+  );
 }

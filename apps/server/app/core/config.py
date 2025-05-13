@@ -1,31 +1,30 @@
 import os
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde el archivo .env
+# Cargar variables de entorno desde .env
 load_dotenv()
 
-class Settings(BaseSettings):
-    """
-    Configuraciones de la aplicación obtenidas de variables de entorno
-    """
-    # Configuración de la API
-    API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Sistema de Control y Gestión de Proyectos Ágiles"
+class Settings(BaseModel):
+    # App general
+    PROJECT_NAME: str = os.getenv("APP_NAME", "Sistema de Control y Gestión de Proyectos Ágiles")
+    PROJECT_VERSION: str = os.getenv("APP_VERSION", "0.1.0")
+    API_PREFIX: str = os.getenv("API_PREFIX", "/api")
+    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "mysecretkey")
     
-    # Configuración de seguridad
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "temporary_secret_key_change_this_in_production")
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 días por defecto
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/agile_db"
+    )
+    DATABASE_RESET: bool = os.getenv("DATABASE_RESET", "false").lower() == "true"
     
-    # Configuración de base de datos
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+    # Supabase
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     
-    # Configuración de CORS
-    BACKEND_CORS_ORIGINS: list = ["*"]
+    # Migraciones y datos de prueba
+    LOAD_TEST_DATA: str = os.getenv("LOAD_TEST_DATA", "false")
 
-    class Config:
-        case_sensitive = True
-
-# Crear instancia global de configuración
+# Crear instancia de configuración
 settings = Settings() 
