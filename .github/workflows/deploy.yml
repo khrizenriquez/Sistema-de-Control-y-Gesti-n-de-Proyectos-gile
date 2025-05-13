@@ -2,11 +2,13 @@ name: Deploy to Digital Ocean Droplet
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,9 +20,9 @@ jobs:
 
       - name: Deploy to Digital Ocean
         run: |
-          ssh -o StrictHostKeyChecking=no agile-system@161.35.97.194 "
-            cd /home/agile-system/app && 
-            git pull origin ${{ github.ref_name }} && 
-            cd infra/podman && 
+          ssh -o StrictHostKeyChecking=no agile-system@161.35.97.194 << 'EOF'
+            cd /home/agile-system/app
+            git pull origin main
+            cd infra/podman
             ./start-environment.sh --no-pgadmin --build
-          " 
+          EOF
