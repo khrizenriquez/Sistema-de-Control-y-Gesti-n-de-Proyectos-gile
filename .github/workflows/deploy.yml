@@ -58,11 +58,49 @@ jobs:
 
       - name: Deploy to Digital Ocean
         run: |
+          # Verificar si el directorio del proyecto existe y configurarlo si es necesario
           ssh digitalocean << 'EOF'
-            cd /home/agile-system/app
-            git pull origin main
-            cd infra/podman
-            ./start-environment.sh --no-pgadmin --build
+            echo "Verificando directorio del proyecto..."
+            PROJECT_DIR="$HOME/Sistema-de-Control-y-Gesti-n-de-Proyectos-gile"
+            
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "Creando directorio de proyecto..."
+              mkdir -p "$PROJECT_DIR"
+              cd "$HOME"
+              echo "Clonando repositorio por primera vez..."
+              git clone https://github.com/khrizenriquez/Sistema-de-Control-y-Gesti-n-de-Proyectos-gile.git
+            else
+              echo "Directorio del proyecto encontrado. Actualizando código..."
+              cd "$PROJECT_DIR"
+              git fetch --all
+              git reset --hard origin/main
+            fi
+            
+            # Verificar si existe el script de entorno
+            if [ -f "$PROJECT_DIR/start-environment.sh" ]; then
+              cd "$PROJECT_DIR"
+              echo "Ejecutando script de despliegue desde la raíz..."
+              chmod +x start-environment.sh
+              ./start-environment.sh --no-pgadmin --build
+            elif [ -d "$PROJECT_DIR/infra/podman" ]; then
+              cd "$PROJECT_DIR/infra/podman"
+              echo "Ejecutando script de despliegue desde infra/podman..."
+              if [ -f "../../start-environment.sh" ]; then
+                chmod +x ../../start-environment.sh
+                ../../start-environment.sh --no-pgadmin --build
+              elif [ -f "./start-environment.sh" ]; then
+                chmod +x ./start-environment.sh
+                ./start-environment.sh --no-pgadmin --build
+              else
+                echo "Error: No se encontró el script start-environment.sh"
+                find "$PROJECT_DIR" -name "start-environment.sh" -type f
+                exit 1
+              fi
+            else
+              echo "Error: No se encontró la estructura esperada del proyecto"
+              ls -la "$PROJECT_DIR"
+              exit 1
+            fi
           EOF
           
       - name: Cleanup SSH files
