@@ -8,22 +8,68 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.5.4
-        with:
-          ssh-private-key: ${{ secrets.DROPLET_SSH_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+      - name: Setup SSH manually
+        env:
+          DEPLOY_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+        run: |
+          # Verificar que tenemos los secretos necesarios
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "Error: El secreto DROPLET_SSH_KEY no está configurado"
+            exit 1
+          fi
+          
+          mkdir -p ~/.ssh
+          # 1) Escribir la clave privada al archivo
+          printf "%s\n" "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # 2) Iniciar ssh-agent
+          eval "$(ssh-agent -s)"
+          
+          # 3) Agregar la clave proporcionando la contraseña
+          echo "Agregando clave SSH al agente..."
+          printf "%s\n" "$PASSPHRASE" | ssh-add ~/.ssh/deploy_key
+          
+          # 4) Verificar que la clave se agregó correctamente
+          if ssh-add -l > /dev/null; then
+            echo "✅ Clave SSH agregada correctamente"
+          else
+            echo "❌ Error al agregar la clave SSH"
+            exit 1
+          fi
+          
+          # 5) Confiar en la host key del droplet
+          echo "Agregando fingerprint del servidor..."
+          ssh-keyscan -H 161.35.97.194 >> ~/.ssh/known_hosts
+          
+          # Configurar SSH para usar la clave para este host específico
+          cat > ~/.ssh/config << EOL
+          Host digitalocean
+            HostName 161.35.97.194
+            User agile-system
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+          EOL
+          chmod 600 ~/.ssh/config
 
       - name: Deploy to Digital Ocean
         run: |
-          ssh -o StrictHostKeyChecking=no agile-system@161.35.97.194 << 'EOF'
+          ssh digitalocean << 'EOF'
             cd /home/agile-system/app
             git pull origin main
             cd infra/podman
             ./start-environment.sh --no-pgadmin --build
           EOF
+          
+      - name: Cleanup SSH files
+        if: always()
+        run: |
+          # Limpiar archivos SSH sensibles
+          ssh-agent -k || true
+          rm -f ~/.ssh/deploy_key
+          rm -f ~/.ssh/config
