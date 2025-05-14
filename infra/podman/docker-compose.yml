@@ -10,9 +10,14 @@ services:
       - "3000:3000"
     depends_on:
       - server
-    restart: unless-stopped
+    restart: always
     networks:
       - frontend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 300M
 
   server:
     build:
@@ -26,12 +31,17 @@ services:
     environment:
       - DATABASE_URL=postgresql://agileuser:${DB_PASSWORD:-agilepassword}@db:5432/agiledb
       - SECRET_KEY=${SECRET_KEY:-temporary_secret_key_change_this_in_production}
-    restart: unless-stopped
+    restart: always
     networks:
       - frontend-network
       - backend-network
     volumes:
       - server-data:/app/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 300M
 
   db:
     image: postgres:15-alpine
@@ -41,13 +51,28 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-agilepassword}
       POSTGRES_DB: agiledb
       PGDATA: /var/lib/postgresql/data/pgdata
+      # Optimizaciones para PostgreSQL
+      POSTGRES_SHARED_BUFFERS: 64MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 128MB
+      POSTGRES_WORK_MEM: 4MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 16MB
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
+    restart: always
     networks:
       - backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 250M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agileuser"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   frontend-network:
