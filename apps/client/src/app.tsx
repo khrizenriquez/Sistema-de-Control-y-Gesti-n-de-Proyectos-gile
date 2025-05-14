@@ -16,6 +16,7 @@ import { FunctionComponent } from 'preact';
 import { ProtectedRoute } from './interface/components/ProtectedRoute';
 import { EnvWarning } from './components/EnvWarning';
 import AdminUsersPage from './pages/AdminUsersPage';
+import { ProjectsPage } from './interface/pages/ProjectsPage';
 import './style.css'
 
 // Componente para rutas que requieren autenticación y tienen el Layout
@@ -55,6 +56,7 @@ export function App() {
         <AuthRouteWithLayout path="/teams/:id/:tab" component={TeamPage} />
         <AuthRouteWithLayout path="/notifications" component={NotificationsPage} />
         <AuthRouteWithLayout path="/admin/users" component={AdminUsersPage} />
+        <AuthRouteWithLayout path="/projects" component={ProjectsPage} />
       </Switch>
       
       {/* Componente de utilidad */}

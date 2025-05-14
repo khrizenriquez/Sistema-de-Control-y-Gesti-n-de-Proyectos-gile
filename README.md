@@ -19,6 +19,29 @@ La documentación incluye:
 - Sistema de autenticación
 - Flujo de desarrollo
 
+## Reglas de Permisos para Tableros
+
+El sistema implementa un conjunto de reglas específicas para la creación y gestión de tableros:
+
+### Roles de Usuario
+
+- **Administradores**: Pueden ver todos los tableros creados por los Product Managers que fueron registrados por ellos. Tienen acceso completo al sistema.
+- **Product Managers (PM)**: Son los únicos que pueden crear tableros. Solo pueden ver y administrar los tableros que ellos mismos han creado.
+- **Desarrolladores/Miembros**: Pueden ver y trabajar en los tableros a los que han sido asignados por un PM o Admin.
+
+### Flujo de Creación y Asignación
+
+1. Los **Product Managers** crean tableros para proyectos específicos.
+2. Los **PM** pueden agregar miembros a sus tableros, limitándose a usuarios creados por el mismo Admin que creó al PM.
+3. Los **Administradores** pueden ver todos los tableros creados por PMs que ellos registraron.
+4. Los **Miembros/Desarrolladores** solo pueden ver y trabajar en tableros a los que fueron explícitamente asignados.
+
+### Interfaces
+
+- `/boards/new`: Interfaz de creación de tableros (exclusiva para PMs)
+- `/boards`: Listado de tableros (filtrado según rol del usuario)
+- `/boards/board-id`: Vista individual de un tablero
+
 ## Requisitos previos
 
 - **Podman** (recomendado v4.0+)

@@ -1,4 +1,5 @@
 import { Column } from '../entities/Column';
+import { api } from '../../infrastructure/api';
 
 export interface BoardData {
   id: string;
@@ -16,208 +17,131 @@ export interface UpdateBoardOrder {
   cardId: string;
 }
 
+export interface Board {
+  id: string;
+  name: string;
+  project_id: string;
+  project_name?: string;
+  created_at: string;
+  template?: string;
+}
+
+export interface CreateBoardRequest {
+  name: string;
+  project_id: string;
+  template?: string;
+}
+
 export class BoardService {
   async getBoardData(boardId: string): Promise<BoardData> {
-    // En un caso real, esto vendría de una API
-    return {
-      id: boardId,
-      title: 'Project Board',
-      description: 'Manage your projects and tasks',
-      columns: [
-        {
-          id: 'resources',
-          title: 'Resources',
-          cards: [
-            {
-              id: 'card-1',
-              title: 'Financials & Growth Data',
-              attachments: 5,
-            },
-            {
-              id: 'card-2',
-              title: '2017 Goals And KPIs',
-              attachments: 2,
-            },
-            {
-              id: 'card-3',
-              title: 'Brand Guide',
-              attachments: 1,
-            },
-            {
-              id: 'card-4',
-              title: 'Employee Manual',
-              attachments: 1,
-            },
-          ],
-        },
-        {
-          id: 'todo',
-          title: 'To Do',
-          cards: [
-            {
-              id: 'card-5',
-              title: 'Build A Better Burrito: 7 Layers To Success',
-              checklistProgress: {
-                completed: 0,
-                total: 7,
+    try {
+      // Primero, obtenemos los detalles básicos del tablero
+      const response = await api.get(`/boards/${boardId}`);
+      const board = response.data;
+      
+      // Luego, obtenemos las columnas y tarjetas
+      // En un caso real, habría un endpoint específico para esto
+      // Por ahora, usamos datos de prueba
+      return {
+        id: boardId,
+        title: board.name || 'Project Board',
+        description: 'Manage your projects and tasks',
+        columns: [
+          {
+            id: 'todo',
+            title: 'To Do',
+            cards: [
+              {
+                id: 'card-5',
+                title: 'Implementar autenticación',
+                checklistProgress: {
+                  completed: 2,
+                  total: 5,
+                },
+                assignee: {
+                  id: 'user-1',
+                  name: 'John Doe',
+                  avatar: '/avatars/john.jpg',
+                },
               },
-              assignee: {
-                id: 'user-1',
-                name: 'John Doe',
-                avatar: '/avatars/john.jpg',
+              {
+                id: 'card-6',
+                title: 'Configurar CI/CD',
+                assignee: {
+                  id: 'user-2',
+                  name: 'Jane Smith',
+                  avatar: '/avatars/jane.jpg',
+                },
               },
-            },
-            {
-              id: 'card-6',
-              title: 'Nacho Ordinary Birthday - Event Space Rentals',
-              assignee: {
-                id: 'user-2',
-                name: 'Jane Smith',
-                avatar: '/avatars/jane.jpg',
+            ],
+          },
+          {
+            id: 'inprogress',
+            title: 'In Progress',
+            cards: [
+              {
+                id: 'card-9',
+                title: 'Diseñar interfaz de usuario',
+                dueDate: '2024-03-25',
+                assignee: {
+                  id: 'user-1',
+                  name: 'John Doe',
+                  avatar: '/avatars/john.jpg',
+                },
               },
-            },
-            {
-              id: 'card-7',
-              title: 'Taco Drone Delivery Service',
-              dueDate: 'Nov 10',
-              attachments: 3,
-              assignee: {
-                id: 'user-3',
-                name: 'Bob Wilson',
-                avatar: '/avatars/bob.jpg',
-              },
-            },
-            {
-              id: 'card-8',
-              title: 'Superbowl Ad - "Super Salad Bowls"',
-              dueDate: 'Dec 12',
-              assignee: {
-                id: 'user-4',
-                name: 'Alice Johnson',
-                avatar: '/avatars/alice.jpg',
-              },
-            },
-          ],
-        },
-        {
-          id: 'doing',
-          title: 'Doing',
-          cards: [
-            {
-              id: 'card-9',
-              title: 'The Taco Truck World Tour',
-              dueDate: 'Oct 5',
-              assignee: {
-                id: 'user-1',
-                name: 'John Doe',
-                avatar: '/avatars/john.jpg',
-              },
-            },
-            {
-              id: 'card-10',
-              title: 'Operation "Awesome Sauce" - A Recipe For Profit',
-              dueDate: 'Oct 18',
-              attachments: 3,
-              checklistProgress: {
-                completed: 2,
-                total: 5,
-              },
-              assignee: {
-                id: 'user-3',
-                name: 'Bob Wilson',
-                avatar: '/avatars/bob.jpg',
-              },
-            },
-            {
-              id: 'card-11',
-              title: '#NoFiller Instagram Campaign',
-              attachments: 3,
-              assignee: {
-                id: 'user-5',
-                name: 'Charlie Brown',
-                avatar: '/avatars/charlie.jpg',
-              },
-            },
-            {
-              id: 'card-12',
-              title: 'Global Franchise Opportunities',
-              checklistProgress: {
-                completed: 4,
-                total: 9,
-              },
-              assignee: {
-                id: 'user-2',
-                name: 'Jane Smith',
-                avatar: '/avatars/jane.jpg',
-              },
-            },
-          ],
-        },
-        {
-          id: 'done',
-          title: 'Done',
-          cards: [
-            {
-              id: 'card-13',
-              title: 'Focus Group: Corn vs. Flour Tortillas',
-              assignee: {
-                id: 'user-4',
-                name: 'Alice Johnson',
-                avatar: '/avatars/alice.jpg',
-              },
-            },
-            {
-              id: 'card-14',
-              title: 'New Swag: Socks, Scarves & Salsa',
-              attachments: 5,
-              assignee: {
-                id: 'user-5',
-                name: 'Charlie Brown',
-                avatar: '/avatars/charlie.jpg',
-              },
-            },
-            {
-              id: 'card-15',
-              title: 'Eco Friendly Utensils & Napkins',
-              checklistProgress: {
-                completed: 3,
-                total: 3,
-              },
-              assignee: {
-                id: 'user-3',
-                name: 'Bob Wilson',
-                avatar: '/avatars/bob.jpg',
-              },
-            },
-            {
-              id: 'card-16',
-              title: 'Update Yelp Listing',
-              attachments: 1,
-              assignee: {
-                id: 'user-4',
-                name: 'Alice Johnson',
-                avatar: '/avatars/alice.jpg',
-              },
-            },
-            {
-              id: 'card-17',
-              title: 'Grand Opening Celebration',
-              dueDate: 'Aug 11, 2016',
-              assignee: {
-                id: 'user-1',
-                name: 'John Doe',
-                avatar: '/avatars/john.jpg',
-              },
-            },
-          ],
-        },
-      ],
-    };
+            ],
+          },
+          {
+            id: 'done',
+            title: 'Done',
+            cards: [],
+          },
+        ],
+      };
+    } catch (error) {
+      console.error('Error fetching board data:', error);
+      throw error;
+    }
   }
 
   async updateCardOrder(update: UpdateBoardOrder): Promise<boolean> {
-    // En un caso real, esto sería una llamada a la API
-    console.log('Updating card order:', update);
-    return true;
+    try {
+      // En un caso real, esto sería una llamada a la API
+      console.log('Updating card order:', update);
+      return true;
+    } catch (error) {
+      console.error('Error updating card order:', error);
+      throw error;
+    }
+  }
+  
+  async getBoards(): Promise<Board[]> {
+    try {
+      const response = await api.get('/boards');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching boards:', error);
+      throw error;
+    }
+  }
+  
+  async createBoard(boardData: CreateBoardRequest): Promise<Board> {
+    try {
+      const response = await api.post('/boards', boardData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating board:', error);
+      throw error;
+    }
+  }
+  
+  async getBoardById(boardId: string): Promise<Board> {
+    try {
+      const response = await api.get(`/boards/${boardId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching board with ID ${boardId}:`, error);
+      throw error;
+    }
   }
 } 
