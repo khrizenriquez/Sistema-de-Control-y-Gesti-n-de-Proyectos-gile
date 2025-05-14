@@ -15,7 +15,6 @@ jobs:
       - name: Setup SSH manually
         env:
           DEPLOY_KEY: ${{ secrets.DROPLET_SSH_KEY }}
-          PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
         run: |
           # Verificar que tenemos los secretos necesarios
           if [ -z "$DEPLOY_KEY" ]; then
@@ -31,9 +30,9 @@ jobs:
           # 2) Iniciar ssh-agent
           eval "$(ssh-agent -s)"
           
-          # 3) Agregar la clave proporcionando la contraseña
+          # 3) Agregar la clave (asumiendo que NO tiene contraseña)
           echo "Agregando clave SSH al agente..."
-          printf "%s\n" "$PASSPHRASE" | ssh-add ~/.ssh/deploy_key
+          ssh-add ~/.ssh/deploy_key
           
           # 4) Verificar que la clave se agregó correctamente
           if ssh-add -l > /dev/null; then
