@@ -11,6 +11,41 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --text-dark-high-contrast: rgba(255, 255, 255, 0.95);
+  --text-dark-medium: rgba(255, 255, 255, 0.87);
+  --text-dark-disabled: rgba(255, 255, 255, 0.6);
+  --bg-dark: #1a1a1a;
+  --bg-dark-card: #2a2a2a;
+  --bg-dark-secondary: #333333;
+}
+
+/* Estilos para modo oscuro con mejor contraste */
+.dark {
+  color: var(--text-dark-high-contrast);
+}
+
+.dark input, 
+.dark textarea, 
+.dark select {
+  background-color: var(--bg-dark-secondary);
+  color: var(--text-dark-high-contrast);
+  border-color: #444;
+}
+
+.dark button {
+  background-color: var(--bg-dark);
+  color: var(--text-dark-high-contrast);
+}
+
+.dark .card, 
+.dark .board-item {
+  background-color: var(--bg-dark-card);
+  color: var(--text-dark-high-contrast);
+}
+
+.dark .text-muted {
+  color: var(--text-dark-medium) !important;
 }
 
 a {
