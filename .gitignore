@@ -172,3 +172,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Database backups
+infra/podman/backups/
+*.sql
+*.sql.gz

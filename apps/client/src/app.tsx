@@ -17,6 +17,8 @@ import { ProtectedRoute } from './interface/components/ProtectedRoute';
 import { EnvWarning } from './components/EnvWarning';
 import AdminUsersPage from './pages/AdminUsersPage';
 import { ProjectsPage } from './interface/pages/ProjectsPage';
+import { ProjectDetailPage } from './interface/pages/ProjectDetailPage';
+import { ProjectMembersPage } from './interface/pages/ProjectMembersPage';
 import './style.css'
 
 // Componente para rutas que requieren autenticación y tienen el Layout
@@ -57,6 +59,8 @@ export function App() {
         <AuthRouteWithLayout path="/notifications" component={NotificationsPage} />
         <AuthRouteWithLayout path="/admin/users" component={AdminUsersPage} />
         <AuthRouteWithLayout path="/projects" component={ProjectsPage} />
+        <AuthRouteWithLayout path="/projects/:id" component={ProjectDetailPage} />
+        <AuthRouteWithLayout path="/projects/:id/members" component={ProjectMembersPage} />
       </Switch>
       
       {/* Componente de utilidad */}

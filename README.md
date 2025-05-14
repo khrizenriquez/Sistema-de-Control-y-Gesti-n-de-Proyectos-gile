@@ -130,6 +130,38 @@ Este modo:
 
 ![Arquitectura de la aplicación](https://github.com/user-attachments/assets/5a69b70e-85f5-4fb9-8a70-3aad89727d54)
 
+## Persistencia de Datos
+
+El sistema utiliza volúmenes de Docker/Podman para asegurar la persistencia de los datos, incluso cuando los contenedores se reinician o se detienen:
+
+- **postgres-data**: Almacena todos los datos de la base de datos PostgreSQL, garantizando que los proyectos, tableros y demás información persistan entre sesiones.
+- **server-data**: Guarda datos del servidor como archivos subidos o configuraciones locales.
+
+### Inicialización y Seeders
+
+La base de datos se inicializa utilizando un sistema de seeders en Python en lugar de scripts SQL puros. Esto proporciona varias ventajas:
+
+1. Mayor flexibilidad para la creación de datos iniciales
+2. Uso del ORM (SQLModel) para mantener consistencia con el resto del código
+3. Mejor manejo de relaciones complejas entre entidades
+4. Actualizaciones automáticas cuando cambian los modelos de datos
+
+Para controlar la inicialización, puede utilizar la variable de entorno `INITIALIZE_DB=true` en el servicio del servidor.
+
+### Respaldo y Restauración de la Base de Datos
+
+Para mayor seguridad, se incluyen scripts para respaldar y restaurar la base de datos:
+
+```bash
+# Crear un respaldo de la base de datos
+./infra/podman/backup-db.sh
+
+# Restaurar desde un respaldo
+./infra/podman/restore-db.sh ./infra/podman/backups/agiledb_backup_20231215_120000.sql.gz
+```
+
+Estos scripts garantizan que pueda recuperar sus datos en caso de problemas o transferirlos entre entornos.
+
 ## Acceso a la aplicación
 
 La aplicación estará disponible en:

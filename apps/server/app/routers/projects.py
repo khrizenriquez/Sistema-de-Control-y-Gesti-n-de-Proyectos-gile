@@ -509,4 +509,83 @@ async def add_project_member(
     
     db.commit()
     
-    return {"message": f"Usuario añadido como {role}"} 
+    return {"message": f"Usuario añadido como {role}"}
+
+@router.get("/{project_id}/members", response_model=TypeList[dict])
+async def get_project_members(
+    project_id: str,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener los miembros de un proyecto"""
+    # Obtener el ID y rol del usuario
+    user_query = text("""
+        SELECT id, role FROM user_profiles 
+        WHERE auth_id = :auth_id OR email = :email
+        LIMIT 1
+    """)
+    user_result = db.execute(user_query, {"auth_id": current_user.id, "email": current_user.email})
+    user_record = user_result.fetchone()
+    
+    if not user_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    local_user_id = user_record[0]
+    user_role = user_record[1]
+    
+    # Verificar que el proyecto existe
+    project_query = text("""
+        SELECT id FROM projects
+        WHERE id = :project_id AND is_active = true
+    """)
+    project_result = db.execute(project_query, {"project_id": project_id})
+    project_record = project_result.fetchone()
+    
+    if not project_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Proyecto no encontrado"
+        )
+    
+    # Verificar que el usuario tiene acceso al proyecto
+    if user_role != "admin":
+        access_query = text("""
+            SELECT 1 FROM project_members
+            WHERE project_id = :project_id AND user_id = :user_id
+        """)
+        access_result = db.execute(access_query, {
+            "project_id": project_id,
+            "user_id": local_user_id
+        })
+        
+        if not access_result.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes acceso a este proyecto"
+            )
+    
+    # Obtener los miembros del proyecto
+    members_query = text("""
+        SELECT pm.id, pm.user_id, up.email, pm.role, pm.created_at
+        FROM project_members pm
+        JOIN user_profiles up ON pm.user_id = up.id
+        WHERE pm.project_id = :project_id
+        ORDER BY pm.created_at DESC
+    """)
+    members_result = db.execute(members_query, {"project_id": project_id})
+    
+    members = []
+    for row in members_result:
+        member = {
+            "id": row[0],
+            "user_id": row[1],
+            "email": row[2],
+            "role": row[3],
+            "added_at": row[4].isoformat()
+        }
+        members.append(member)
+    
+    return members 
