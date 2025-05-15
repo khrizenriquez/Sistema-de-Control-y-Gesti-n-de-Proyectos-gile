@@ -13,6 +13,7 @@ NC="\033[0m" # No Color
 BUILD=false
 DEV=false
 NO_PGADMIN=false
+RESET_DB=false
 
 # Procesar argumentos
 for arg in "$@"; do
@@ -25,6 +26,9 @@ for arg in "$@"; do
       ;;
     --no-pgadmin)
       NO_PGADMIN=true
+      ;;
+    --reset-db)
+      RESET_DB=true
       ;;
   esac
 done
@@ -48,9 +52,26 @@ if ! command -v podman &> /dev/null; then
   exit 1
 fi
 
-# Detener y eliminar contenedores existentes
+# Detener contenedores existentes
 print_message "Deteniendo contenedores existentes..."
-podman rm -f db pgadmin server client 2>/dev/null || true
+podman stop db pgadmin server client 2>/dev/null || true
+
+# Solo eliminar el volumen de la base de datos si se especifica --reset-db
+if [ "$RESET_DB" = true ]; then
+  print_warning "¡Opción --reset-db detectada! Se eliminará la base de datos y todos los datos"
+  # Eliminar contenedor de base de datos
+  podman rm -f db 2>/dev/null || true
+  # Eliminar volumen de datos PostgreSQL
+  podman volume rm postgres-data 2>/dev/null || true
+  print_message "Volumen de base de datos eliminado, los datos se reiniciarán"
+else
+  # Solo eliminar el contenedor pero conservar el volumen
+  podman rm db 2>/dev/null || true
+  print_message "Conservando el volumen postgres-data para mantener los datos existentes"
+fi
+
+# Eliminar los demás contenedores
+podman rm pgadmin server client 2>/dev/null || true
 
 # Crear la red si no existe
 print_message "Creando red de contenedores..."
@@ -79,6 +100,7 @@ podman run -d \
   -e POSTGRES_PASSWORD=${DB_PASSWORD} \
   -e POSTGRES_DB=agiledb \
   -p 5432:5432 \
+  -v postgres-data:/var/lib/postgresql/data \
   docker.io/library/postgres:15-alpine
 
 # Esperar a que la base de datos esté lista
@@ -106,6 +128,7 @@ podman run -d \
   -p 8000:8000 \
   --network=agile-network \
   -e DATABASE_URL=postgresql+asyncpg://agileuser:${DB_PASSWORD}@db:5432/agiledb \
+  -e INITIALIZE_DB=true \
   localhost/server-app:latest
 
 # Iniciar cliente
@@ -166,6 +189,8 @@ print_message "Para ver los logs de un contenedor ejecutar: podman logs <contain
 echo "  Ejemplo: podman logs server"
 echo ""
 print_message "Para detener todos los contenedores ejecutar: podman rm -f db pgadmin server client"
+echo ""
+print_message "Para eliminar todos los datos y reiniciar la base de datos, use: ./start-environment.sh --reset-db"
 echo ""
 
 # Modificar verificación para considerar que pgAdmin podría no estar presente

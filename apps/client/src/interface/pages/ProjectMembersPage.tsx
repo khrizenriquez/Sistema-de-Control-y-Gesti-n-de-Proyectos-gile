@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { useRoute, useLocation } from 'wouter-preact';
 import { ProjectService } from '../../domain/services/ProjectService';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,13 +22,17 @@ export const ProjectMembersPage = () => {
   const [addingMember, setAddingMember] = useState(false);
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
+  const dataFetchedRef = useRef(false);
 
   useEffect(() => {
     const fetchMembers = async () => {
+      if (dataFetchedRef.current) return;
+      
       try {
         if (params && params.id) {
           const membersData = await ProjectService.getProjectMembers(params.id);
           setMembers(membersData);
+          dataFetchedRef.current = true;
         }
       } catch (err) {
         setError('Error al cargar los miembros del proyecto');
@@ -39,7 +43,7 @@ export const ProjectMembersPage = () => {
     };
 
     fetchMembers();
-  }, [params]);
+  }, [params?.id]);
 
   const handleBackClick = () => {
     if (params && params.id) {
@@ -64,6 +68,7 @@ export const ProjectMembersPage = () => {
         setMembers(membersData);
         setNewMemberEmail('');
         setError(null);
+        dataFetchedRef.current = false;
       }
     } catch (err) {
       setError('Error al añadir el miembro al proyecto');

@@ -44,39 +44,24 @@ if [[ -n "$DATABASE_URL" ]]; then
     echo "Database: $POSTGRES_DB"
 fi
 
-# Esperar a que PostgreSQL esté disponible
-if [[ -n "$POSTGRES_HOST" && -n "$POSTGRES_USER" && -n "$POSTGRES_PASSWORD" && -n "$POSTGRES_DB" ]]; then
-    wait_for_postgres
-fi
+# Inicializar la base de datos utilizando nuestro script de Python mejorado
+echo "Inicializando base de datos con script mejorado..."
+python /app/scripts/init_db.py
 
-# Crear tablas
-echo "Creando tablas en la base de datos..."
-python -c "from app.database.create_tables import create_tables; create_tables()"
-
-# Verificar si se debe inicializar la base de datos
+# Verificar si se debe inicializar la base de datos con datos iniciales
 if [[ "$INITIALIZE_DB" == "true" ]]; then
-    echo "Inicialización de base de datos solicitada..."
+    echo "Inicialización de datos solicitada..."
     
-    # Add after creating tables and before seeding users
+    # Ejecutar script de migración para añadir columna creator_id si es necesario
     echo "Ejecutando script de migración para añadir columna creator_id..."
     python /app/migrations/add_creator_id.py
-
-    # Ejecutar script de usuarios de prueba
-    echo "Creando datos de prueba (usuarios por roles)..."
-    python /app/scripts/seed_users.py
-
+    
     # Ejecutar script de actualización de roles
     echo "Actualizando roles de usuarios..."
     PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /app/scripts/update_roles.sql
-
-    # Ejecutar cualquier otro script de inicialización
-    echo "Ejecutando script de datos semilla..."
-    python -c "from app.database.seed import seed_data; import asyncio; asyncio.run(seed_data())"
     
     # Marcar la inicialización como completada
     echo "Inicialización de la base de datos completada."
-else
-    echo "Saltando la inicialización de la base de datos (INITIALIZE_DB no está establecido a 'true')"
 fi
 
 # Iniciar la aplicación

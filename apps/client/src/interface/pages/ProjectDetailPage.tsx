@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { useRoute, useLocation } from 'wouter-preact';
 import { ProjectService } from '../../domain/services/ProjectService';
 import { useTheme } from '../../context/ThemeContext';
@@ -19,14 +19,18 @@ export const ProjectDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
+  const dataFetchedRef = useRef(false);
 
   useEffect(() => {
     const fetchProject = async () => {
+      if (dataFetchedRef.current) return;
+      
       try {
         if (params && params.id) {
           const projectData = await ProjectService.getProjectById(params.id);
           if (projectData) {
             setProject(projectData);
+            dataFetchedRef.current = true;
           } else {
             setError('No se pudo cargar el proyecto');
           }
@@ -40,7 +44,7 @@ export const ProjectDetailPage = () => {
     };
 
     fetchProject();
-  }, [params]);
+  }, [params?.id]);
 
   const handleBackClick = () => {
     navigate('/projects');
