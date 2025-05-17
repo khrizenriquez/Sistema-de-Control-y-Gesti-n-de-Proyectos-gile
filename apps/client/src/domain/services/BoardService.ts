@@ -36,7 +36,7 @@ export class BoardService {
   async getBoardData(boardId: string): Promise<BoardData> {
     try {
       // Primero, obtenemos los detalles básicos del tablero
-      const response = await api.get(`/boards/${boardId}`);
+      const response = await api.get(`/api/boards/${boardId}`);
       const board = response.data;
       
       // Luego, obtenemos las columnas y tarjetas
@@ -117,7 +117,7 @@ export class BoardService {
   
   async getBoards(): Promise<Board[]> {
     try {
-      const response = await api.get('/boards');
+      const response = await api.get('/api/boards');
       return response.data;
     } catch (error) {
       console.error('Error fetching boards:', error);
@@ -127,7 +127,7 @@ export class BoardService {
   
   async createBoard(boardData: CreateBoardRequest): Promise<Board> {
     try {
-      const response = await api.post('/boards', boardData);
+      const response = await api.post('/api/boards', boardData);
       return response.data;
     } catch (error) {
       console.error('Error creating board:', error);
@@ -137,7 +137,7 @@ export class BoardService {
   
   async getBoardById(boardId: string): Promise<Board> {
     try {
-      const response = await api.get(`/boards/${boardId}`);
+      const response = await api.get(`/api/boards/${boardId}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching board with ID ${boardId}:`, error);
