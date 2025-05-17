@@ -34,6 +34,7 @@ user_profiles = Table(
     Column('email', String, index=True),
     Column('avatar_url', String, nullable=True),
     Column('bio', Text, nullable=True),
+    Column('role', String, default='member'),
     Column('created_at', DateTime, default=datetime.datetime.utcnow),
     Column('updated_at', DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 )
@@ -195,7 +196,7 @@ activity_logs = Table(
 )
 
 def add_role_column_if_not_exists():
-    """Agregar columna role si no existe"""
+    """Agregar columna role si no existe y asignar roles correctos a usuarios por defecto"""
     try:
         with engine.connect() as conn:
             # Verificar si la columna role existe
@@ -208,10 +209,43 @@ def add_role_column_if_not_exists():
                 conn.execute(text("ALTER TABLE user_profiles ADD COLUMN role VARCHAR(50) DEFAULT 'member'"))
                 conn.commit()
                 logger.info("Columna 'role' agregada correctamente")
-            else:
-                logger.info("La columna 'role' ya existe en la tabla user_profiles")
+            
+            # Asegurar que los usuarios tengan los roles correctos según sus correos
+            logger.info("Verificando y actualizando roles de usuarios predefinidos...")
+            
+            # Actualizar rol del admin
+            conn.execute(text("""
+                UPDATE user_profiles
+                SET role = 'admin'
+                WHERE email = 'admin@ingsistemas.gt' AND (role IS NULL OR role != 'admin')
+            """))
+            
+            # Actualizar rol del desarrollador
+            conn.execute(text("""
+                UPDATE user_profiles
+                SET role = 'developer'
+                WHERE email = 'dev@ingsistemas.gt' AND (role IS NULL OR role != 'developer')
+            """))
+            
+            # Actualizar rol del product owner
+            conn.execute(text("""
+                UPDATE user_profiles
+                SET role = 'product_owner'
+                WHERE email = 'pm@ingsistemas.gt' AND (role IS NULL OR role != 'product_owner')
+            """))
+            
+            # Actualizar rol del miembro regular
+            conn.execute(text("""
+                UPDATE user_profiles
+                SET role = 'member'
+                WHERE email = 'member@ingsistemas.gt' AND (role IS NULL OR role != 'member')
+            """))
+            
+            conn.commit()
+            logger.info("Roles de usuarios predefinidos actualizados correctamente")
+            
     except Exception as e:
-        logger.error(f"Error al verificar/agregar la columna role: {e}")
+        logger.error(f"Error al verificar/agregar la columna role o actualizar roles: {e}")
 
 def create_tables():
     """Crear tablas en la base de datos"""

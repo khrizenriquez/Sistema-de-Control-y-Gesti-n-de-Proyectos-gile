@@ -107,6 +107,10 @@ podman run -d \
 print_message "Esperando a que la base de datos esté lista..."
 sleep 5
 
+# Asegurar que los roles de usuario estén correctamente configurados
+print_message "Asegurando roles de usuario correctos..."
+podman exec -i db psql -U agileuser -d agiledb < apps/server/scripts/update_roles.sql >/dev/null 2>&1 || true
+
 # Iniciar pgAdmin solo si no se especifica --no-pgadmin
 if [ "$NO_PGADMIN" = false ]; then
   print_message "Iniciando pgAdmin..."
@@ -129,7 +133,21 @@ podman run -d \
   --network=agile-network \
   -e DATABASE_URL=postgresql+asyncpg://agileuser:${DB_PASSWORD}@db:5432/agiledb \
   -e INITIALIZE_DB=true \
+  -e SUPABASE_URL=${SUPABASE_URL:-""} \
+  -e SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-""} \
   localhost/server-app:latest
+
+# Esperar a que el servidor esté listo
+print_message "Esperando a que el servidor esté listo..."
+sleep 5
+
+# Ejecutar script de sincronización de roles
+print_message "Ejecutando script de sincronización de roles..."
+podman exec server python /app/scripts/sync_supabase_roles.py || true
+
+# Crear proyectos de demostración si no existen
+print_message "Creando proyectos de demostración si es necesario..."
+podman exec server python /app/scripts/create_demo_project.py || true
 
 # Iniciar cliente
 print_message "Iniciando cliente frontend..."

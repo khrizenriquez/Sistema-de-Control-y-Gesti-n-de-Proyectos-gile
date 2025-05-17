@@ -62,22 +62,44 @@ async def is_product_owner_or_admin(
     if user_role == "admin":
         return True
     
-    # Verificar si es product_owner del proyecto
-    member_query = text("""
-        SELECT role FROM project_members
-        WHERE project_id = :project_id AND user_id = :user_id
-        LIMIT 1
-    """)
-    member_result = db.execute(member_query, {
-        "project_id": project_id, 
-        "user_id": local_user_id
-    })
-    member_record = member_result.fetchone()
+    # Si es product_owner, verificar
+    if user_role == "product_owner":
+        # Verificar si es product_owner del proyecto
+        member_query = text("""
+            SELECT role FROM project_members
+            WHERE project_id = :project_id AND user_id = :user_id
+            LIMIT 1
+        """)
+        member_result = db.execute(member_query, {
+            "project_id": project_id, 
+            "user_id": local_user_id
+        })
+        member_record = member_result.fetchone()
+        
+        if member_record and member_record[0] == "product_owner":
+            return True
+            
+        # También permitir si es product_owner en otro proyecto creado por el mismo admin que creó este proyecto
+        admin_query = text("""
+            -- Verificar si este usuario es product_owner para algún otro proyecto creado por el mismo admin
+            -- que creó el proyecto actual
+            SELECT 1 
+            FROM project_members pm
+            JOIN projects p1 ON pm.project_id = p1.id
+            JOIN projects p2 ON p1.created_by = p2.created_by
+            WHERE pm.user_id = :user_id 
+              AND pm.role = 'product_owner'
+              AND p2.id = :project_id
+        """)
+        admin_result = db.execute(admin_query, {
+            "project_id": project_id,
+            "user_id": local_user_id
+        })
+        
+        if admin_result.fetchone():
+            return True
     
-    if not member_record or member_record[0] != "product_owner":
-        return False
-    
-    return True
+    return False
 
 @router.post("/", response_model=BoardResponse)
 async def create_board(
@@ -185,28 +207,37 @@ async def list_boards(
     
     # Diferentes queries según rol
     if user_role == "admin":
-        # Admin: Ver todos los tableros creados por Product Managers que han sido creados por este admin
+        # Admin: Ver tableros de proyectos creados por este admin
         boards_query = text("""
             SELECT b.id, b.name, b.project_id, p.name as project_name, b.created_at, 
                    COALESCE((SELECT COUNT(*) FROM lists WHERE board_id = b.id), 0) as list_count
             FROM boards b
             JOIN projects p ON b.project_id = p.id
-            JOIN project_members pm ON p.id = pm.project_id
-            JOIN user_profiles up ON pm.user_id = up.id
-            WHERE up.creator_id = :admin_id AND pm.role = 'product_owner'
+            WHERE p.created_by = :user_id AND p.is_active = true
             GROUP BY b.id, p.name
             ORDER BY b.created_at DESC
         """)
-        result = db.execute(boards_query, {"admin_id": local_user_id})
+        result = db.execute(boards_query, {"user_id": local_user_id})
     elif user_role == "product_owner":
-        # Product Owner: Ver solo sus tableros
+        # Product Owner: Ver tableros de proyectos donde es miembro como product_owner o que fueron creados por administradores que lo añadieron como product_owner
         boards_query = text("""
-            SELECT b.id, b.name, b.project_id, p.name as project_name, b.created_at,
+            SELECT DISTINCT b.id, b.name, b.project_id, p.name as project_name, b.created_at,
                    COALESCE((SELECT COUNT(*) FROM lists WHERE board_id = b.id), 0) as list_count
             FROM boards b
             JOIN projects p ON b.project_id = p.id
-            JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = :user_id
-            WHERE pm.role = 'product_owner'
+            LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = :user_id
+            WHERE (
+                (pm.user_id = :user_id AND pm.role = 'product_owner') -- Proyectos donde es miembro como product_owner
+                OR 
+                p.created_by IN (
+                    -- Obtener los admin_ids que tienen a este product_owner como miembro en algún proyecto
+                    SELECT DISTINCT p2.created_by
+                    FROM projects p2
+                    JOIN project_members pm2 ON p2.id = pm2.project_id
+                    WHERE pm2.user_id = :user_id AND pm2.role = 'product_owner'
+                )
+            )
+            AND p.is_active = true
             ORDER BY b.created_at DESC
         """)
         result = db.execute(boards_query, {"user_id": local_user_id})

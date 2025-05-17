@@ -109,6 +109,34 @@ export const AuthProvider = ({ children }: { children: any }) => {
       // Si el login es exitoso, actualizamos el usuario en el contexto
       if (result.success && result.user) {
         setUser(result.user);
+        
+        // Sincronizar el rol del usuario con el backend
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/sync-roles`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.role) {
+              // Actualizar el rol del usuario en el contexto
+              setUser(prevUser => {
+                if (!prevUser) return null;
+                return {
+                  ...prevUser,
+                  role: data.role
+                };
+              });
+              console.log('Rol sincronizado correctamente:', data.role);
+            }
+          }
+        } catch (syncError) {
+          console.error('Error al sincronizar rol:', syncError);
+        }
       }
       
       return result;

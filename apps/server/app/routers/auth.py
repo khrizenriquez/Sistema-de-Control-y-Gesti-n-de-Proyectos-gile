@@ -4,7 +4,7 @@ from sqlalchemy import text
 from app.database.db import get_db
 from app.models.user import UserProfile
 from app.core.auth import get_current_user, AuthUser
-from app.core.supabase import create_user, sign_up_with_email_password, supabase
+from app.core.supabase import create_user, sign_up_with_email_password, supabase, update_user_metadata
 from pydantic import BaseModel
 import uuid
 import httpx
@@ -250,4 +250,48 @@ async def validate_token(current_user: AuthUser = Depends(get_current_user)):
         "valid": True,
         "user_id": current_user.id,
         "email": current_user.email
-    } 
+    }
+
+@router.post("/sync-roles", response_model=dict)
+async def sync_user_role(current_user: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Sincroniza el rol del usuario actual desde la base de datos local con Supabase Auth"""
+    try:
+        # Obtener el rol del usuario desde la base de datos local
+        user_query = text("""
+            SELECT role FROM user_profiles
+            WHERE auth_id = :auth_id OR email = :email
+            LIMIT 1
+        """)
+        result = db.execute(user_query, {"auth_id": current_user.id, "email": current_user.email})
+        user_record = result.fetchone()
+        
+        if not user_record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado en la base de datos local"
+            )
+        
+        # Obtener el rol del usuario
+        role = user_record[0]
+        
+        # Actualizar los metadatos en Supabase Auth
+        updated_user = await update_user_metadata(current_user.id, {"role": role})
+        
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al actualizar metadatos en Supabase Auth"
+            )
+        
+        return {
+            "success": True,
+            "message": f"Rol sincronizado correctamente: {role}",
+            "role": role
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al sincronizar rol: {str(e)}"
+        ) 

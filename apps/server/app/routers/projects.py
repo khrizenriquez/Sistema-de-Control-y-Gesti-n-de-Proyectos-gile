@@ -72,12 +72,24 @@ async def list_projects(
         result = db.execute(projects_query, {"user_id": local_user_id})
     elif user_role == "product_owner":
         # Product Owner: Ver proyectos donde es miembro como product_owner
+        # Y también ver proyectos creados por el administrador que añadió al usuario como product_owner
         projects_query = text("""
-            SELECT p.id, p.name, p.description, p.created_at, up.email as creator
+            SELECT DISTINCT p.id, p.name, p.description, p.created_at, up.email as creator
             FROM projects p
-            JOIN project_members pm ON p.id = pm.project_id
             JOIN user_profiles up ON p.created_by = up.id
-            WHERE pm.user_id = :user_id AND pm.role = 'product_owner' AND p.is_active = true
+            LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = :user_id
+            WHERE (
+                (pm.user_id = :user_id AND pm.role = 'product_owner') -- Proyectos donde es miembro como product_owner
+                OR 
+                p.created_by IN (
+                    -- Obtener los admin_ids que tienen a este product_owner como miembro en algún proyecto
+                    SELECT DISTINCT p2.created_by
+                    FROM projects p2
+                    JOIN project_members pm2 ON p2.id = pm2.project_id
+                    WHERE pm2.user_id = :user_id AND pm2.role = 'product_owner'
+                )
+            ) 
+            AND p.is_active = true
             ORDER BY p.created_at DESC
         """)
         result = db.execute(projects_query, {"user_id": local_user_id})
