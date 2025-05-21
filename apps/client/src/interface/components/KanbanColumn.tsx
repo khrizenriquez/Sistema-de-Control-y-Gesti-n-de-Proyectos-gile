@@ -1,6 +1,7 @@
 import { FunctionComponent } from 'preact';
 import { Droppable } from '@hello-pangea/dnd';
 import { KanbanCard } from './KanbanCard';
+import { useState } from 'preact/hooks';
 
 // Define a type for the cards that matches the column data structure
 type ColumnCardType = {
@@ -8,6 +9,8 @@ type ColumnCardType = {
   title: string;
   description?: string;
   dueDate?: string;
+  list_id?: string;
+  position?: number;
   attachments?: number;
   checklistProgress?: {
     completed: number;
@@ -27,9 +30,21 @@ interface KanbanColumnProps {
     cards: Array<ColumnCardType>;
   };
   onCardUpdate?: (cardId: string, updates: Partial<ColumnCardType>) => void;
+  onAddCard?: (listId: string, title: string) => void;
 }
 
-export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({ column, onCardUpdate }) => {
+export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({ 
+  column, 
+  onCardUpdate,
+  onAddCard
+}) => {
+  const [isAddingCard, setIsAddingCard] = useState(false);
+  const [newCardTitle, setNewCardTitle] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Check if this is a "To Do" column (it should be the first column where we can add cards)
+  const isToDoColumn = column.title === "To Do";
+
   // Convert column card format to KanbanCard format
   const convertCardFormat = (card: ColumnCardType) => {
     // Convert attachments from number to array of objects as expected by KanbanCard
@@ -57,6 +72,23 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({ column, onC
         columnUpdates.attachments = updates.attachments.length;
       }
       onCardUpdate(cardId, columnUpdates);
+    }
+  };
+
+  // Handle adding a new card
+  const handleAddCard = async (e: Event) => {
+    e.preventDefault();
+    if (!newCardTitle.trim() || !onAddCard || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      await onAddCard(column.id, newCardTitle);
+      setNewCardTitle('');
+      setIsAddingCard(false);
+    } catch (error) {
+      console.error("Error adding card:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -95,13 +127,53 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({ column, onC
         )}
       </Droppable>
 
-      {/* Add Card Button */}
-      <button className="w-full mt-2 p-2 flex items-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded">
-        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-        </svg>
-        <span>Add a card</span>
-      </button>
+      {/* Add Card Form/Button - Only show for "To Do" column */}
+      {isToDoColumn && (
+        <>
+          {isAddingCard ? (
+            <form onSubmit={handleAddCard} className="mt-2 p-2 bg-white rounded shadow-sm">
+              <textarea
+                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Enter card title"
+                value={newCardTitle}
+                onInput={(e) => setNewCardTitle((e.target as HTMLTextAreaElement).value)}
+                rows={2}
+                autoFocus
+              />
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  className="mr-2 px-3 py-1 text-gray-600 hover:text-gray-800"
+                  onClick={() => {
+                    setIsAddingCard(false);
+                    setNewCardTitle('');
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300"
+                  disabled={!newCardTitle.trim() || isSubmitting}
+                >
+                  {isSubmitting ? 'Adding...' : 'Add Card'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button 
+              className="w-full mt-2 p-2 flex items-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+              onClick={() => setIsAddingCard(true)}
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add a card</span>
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }; 

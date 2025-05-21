@@ -588,8 +588,8 @@ async def create_card(
         due_date = card_data.due_date
     
     create_card_query = text("""
-        INSERT INTO cards (id, title, description, list_id, position, due_date, created_at, updated_at)
-        VALUES (:id, :title, :description, :list_id, :position, :due_date, NOW(), NOW())
+        INSERT INTO cards (id, title, description, list_id, position, due_date, created_at, updated_at, is_active)
+        VALUES (:id, :title, :description, :list_id, :position, :due_date, NOW(), NOW(), true)
         RETURNING id, title, description, list_id, position, due_date, created_at, updated_at
     """)
     
