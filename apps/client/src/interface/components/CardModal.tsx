@@ -19,6 +19,7 @@ interface CardModalProps {
     title: string;
     description?: string;
     dueDate?: string;
+    assignee_id?: string;
     attachments?: Array<{
       id: string;
       url: string;
@@ -33,7 +34,7 @@ interface CardModalProps {
     assignee?: {
       id: string;
       name: string;
-      avatar: string;
+      avatar?: string;
     };
   };
   onClose: () => void;
@@ -46,9 +47,15 @@ interface CardModalProps {
       title: string;
     }>;
   }>;
+  availableDevelopers?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  }>;
 }
 
-export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, onUpdate, availableBoards }) => {
+export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, onUpdate, availableBoards, availableDevelopers }) => {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [isWatching, setIsWatching] = useState(false);
@@ -59,6 +66,7 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [selectedColor, setSelectedColor] = useState(card.cover?.color || '');
+  const [selectedAssignee, setSelectedAssignee] = useState(card.assignee_id || '');
 
   // Manejadores para los modales
   const handleChecklistClick = () => {
@@ -83,6 +91,29 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
 
   const handleCopyClick = () => {
     setShowCopyModal(true);
+  };
+
+  const handleAssigneeChange = (e: Event) => {
+    const assigneeId = (e.target as HTMLSelectElement).value;
+    setSelectedAssignee(assigneeId);
+    
+    if (assigneeId) {
+      const developer = availableDevelopers?.find(dev => dev.id === assigneeId);
+      
+      onUpdate(card.id, {
+        assignee_id: assigneeId,
+        assignee: developer ? {
+          id: developer.id,
+          name: developer.name,
+          avatar: developer.avatar
+        } : undefined
+      });
+    } else {
+      onUpdate(card.id, {
+        assignee_id: undefined,
+        assignee: undefined
+      });
+    }
   };
 
   const saveChanges = () => {
@@ -232,8 +263,26 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
             {/* Right Column - Actions */}
             <div className="w-48 space-y-4">
               <div className="space-y-2">
-                <h4 className="text-xs font-medium text-gray-400 uppercase">Add to card</h4>
+                <h4 className="text-xs font-medium text-gray-400 uppercase">Añadir a tarjeta</h4>
                 <div className="space-y-2">
+                  {availableDevelopers && availableDevelopers.length > 0 && (
+                    <div className="w-full space-y-1">
+                      <h5 className="text-xs font-medium text-gray-400">Asignar a</h5>
+                      <select
+                        value={selectedAssignee}
+                        onChange={handleAssigneeChange}
+                        className="w-full bg-gray-700 text-gray-100 p-2 rounded-lg border-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Sin asignar</option>
+                        {availableDevelopers.map(dev => (
+                          <option key={dev.id} value={dev.id}>
+                            {dev.name} ({dev.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
                   <button 
                     onClick={handleChecklistClick}
                     className="w-full flex items-center space-x-2 px-3 py-1.5 text-gray-300 hover:bg-gray-700 rounded"

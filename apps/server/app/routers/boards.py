@@ -53,6 +53,7 @@ class CardCreate(BaseModel):
     description: Optional[str] = None
     position: Optional[int] = None
     due_date: Optional[str] = None
+    assignee_id: Optional[str] = None
 
 class CardUpdate(BaseModel):
     title: Optional[str] = None
@@ -60,6 +61,7 @@ class CardUpdate(BaseModel):
     position: Optional[int] = None
     due_date: Optional[str] = None
     list_id: Optional[str] = None
+    assignee_id: Optional[str] = None
 
 class CardResponse(BaseModel):
     id: str
@@ -68,6 +70,9 @@ class CardResponse(BaseModel):
     list_id: str
     position: int
     due_date: Optional[str]
+    assignee_id: Optional[str] = None
+    assignee_name: Optional[str] = None
+    assignee_email: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -160,7 +165,7 @@ async def create_board(
     # Verificar que el proyecto existe
     project_query = text("""
         SELECT id FROM projects
-        WHERE id = :project_id AND is_active = true
+        WHERE id = :project_id
     """)
     project_result = db.execute(project_query, {"project_id": board_data.project_id})
     if not project_result.fetchone():
@@ -248,7 +253,7 @@ async def list_boards(
                    COALESCE((SELECT COUNT(*) FROM lists WHERE board_id = b.id), 0) as list_count
             FROM boards b
             JOIN projects p ON b.project_id = p.id
-            WHERE p.created_by = :user_id AND p.is_active = true
+            WHERE p.created_by = :user_id
             GROUP BY b.id, p.name
             ORDER BY b.created_at DESC
         """)
@@ -272,7 +277,6 @@ async def list_boards(
                     WHERE pm2.user_id = :user_id AND pm2.role = 'product_owner'
                 )
             )
-            AND p.is_active = true
             ORDER BY b.created_at DESC
         """)
         result = db.execute(boards_query, {"user_id": local_user_id})
@@ -317,7 +321,7 @@ async def get_board(
     board_query = text("""
         SELECT b.id, b.name, b.project_id, b.created_at
         FROM boards b
-        WHERE b.id = :board_id AND b.is_active = true
+        WHERE b.id = :board_id
     """)
     board_result = db.execute(board_query, {"board_id": board_id})
     board_record = board_result.fetchone()
@@ -396,7 +400,7 @@ async def get_board_lists(
     lists_query = text("""
         SELECT id, name, board_id, position, created_at
         FROM lists
-        WHERE board_id = :board_id AND is_active = true
+        WHERE board_id = :board_id
         ORDER BY position ASC
     """)
     
@@ -437,7 +441,7 @@ async def create_board_list(
         position_query = text("""
             SELECT COALESCE(MAX(position) + 1, 0)
             FROM lists
-            WHERE board_id = :board_id AND is_active = true
+            WHERE board_id = :board_id
         """)
         result = db.execute(position_query, {"board_id": board_id})
         position = result.scalar() or 0
@@ -485,7 +489,7 @@ async def get_list_cards(
     list_query = text("""
         SELECT l.board_id
         FROM lists l
-        WHERE l.id = :list_id AND l.is_active = true
+        WHERE l.id = :list_id
     """)
     
     result = db.execute(list_query, {"list_id": list_id})
@@ -507,12 +511,12 @@ async def get_list_cards(
             detail="No tienes permiso para acceder a este tablero"
         )
     
-    # Obtener tarjetas ordenadas por posición
+    # Obtener tarjetas ordenadas por posición con información del asignado
     cards_query = text("""
-        SELECT id, title, description, list_id, position, due_date, created_at, updated_at
-        FROM cards
-        WHERE list_id = :list_id
-        ORDER BY position ASC
+        SELECT c.id, c.title, c.description, c.list_id, c.position, c.due_date, c.created_at, c.updated_at
+        FROM cards c
+        WHERE c.list_id = :list_id
+        ORDER BY c.position ASC
     """)
     
     result = db.execute(cards_query, {"list_id": list_id})
@@ -527,7 +531,10 @@ async def get_list_cards(
             "position": row[4],
             "due_date": row[5].isoformat() if row[5] else None,
             "created_at": row[6].isoformat(),
-            "updated_at": row[7].isoformat()
+            "updated_at": row[7].isoformat(),
+            "assignee_id": None,
+            "assignee_name": None,
+            "assignee_email": None
         }
         cards.append(card)
     
@@ -546,7 +553,7 @@ async def create_card(
     list_query = text("""
         SELECT l.board_id
         FROM lists l
-        WHERE l.id = :list_id AND l.is_active = true
+        WHERE l.id = :list_id
     """)
     
     result = db.execute(list_query, {"list_id": list_id})
@@ -567,6 +574,70 @@ async def create_card(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para acceder a este tablero"
         )
+    
+    # Obtener el rol y el ID del usuario actual
+    user_query = text("""
+        SELECT id, role FROM user_profiles 
+        WHERE auth_id = :auth_id OR email = :email
+        LIMIT 1
+    """)
+    user_result = db.execute(user_query, {"auth_id": current_user.id, "email": current_user.email})
+    user_record = user_result.fetchone()
+    
+    if not user_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    local_user_id = user_record[0]
+    user_role = user_record[1]
+    
+    # Si es miembro regular (no developer, admin o product_owner), solo puede ver
+    if user_role == "member":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Los miembros regulares no pueden crear tarjetas"
+        )
+    
+    # Verificar si el assignee_id es válido y pertenece al mismo proyecto
+    assignee_id = card_data.assignee_id
+    if assignee_id:
+        # Verificar que el usuario asignado existe
+        assignee_query = text("""
+            SELECT up.id, up.role, pm.role as project_role
+            FROM user_profiles up
+            LEFT JOIN project_members pm ON up.id = pm.user_id
+            LEFT JOIN projects p ON pm.project_id = p.id
+            LEFT JOIN boards b ON p.id = b.project_id
+            LEFT JOIN lists l ON b.id = l.board_id
+            WHERE up.id = :assignee_id AND l.id = :list_id
+            LIMIT 1
+        """)
+        
+        assignee_result = db.execute(assignee_query, {
+            "assignee_id": assignee_id,
+            "list_id": list_id
+        })
+        assignee_record = assignee_result.fetchone()
+        
+        if not assignee_record:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El usuario asignado no existe o no pertenece a este proyecto"
+            )
+        
+        # Verificar que el usuario asignado es developer o tiene acceso adecuado
+        assignee_role = assignee_record[1]
+        project_role = assignee_record[2]
+        
+        if assignee_role != "developer" and project_role != "developer":
+            # Si el usuario actual es admin o product_owner, permitir asignar a cualquiera del proyecto
+            if user_role not in ["admin", "product_owner"]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Solo se pueden asignar tarjetas a desarrolladores"
+                )
     
     # Si no se especifica posición, obtener la siguiente posición disponible
     if card_data.position is None:
@@ -586,6 +657,10 @@ async def create_card(
     due_date = None
     if card_data.due_date:
         due_date = card_data.due_date
+    
+    # Si el usuario es developer y no especificó assignee_id, asignarse a sí mismo
+    if user_role == "developer" and not assignee_id:
+        assignee_id = local_user_id
     
     create_card_query = text("""
         INSERT INTO cards (id, title, description, list_id, position, due_date, created_at, updated_at, is_active)
@@ -613,6 +688,9 @@ async def create_card(
         "list_id": card_record[3],
         "position": card_record[4],
         "due_date": card_record[5].isoformat() if card_record[5] else None,
+        "assignee_id": None,
+        "assignee_name": None,
+        "assignee_email": None,
         "created_at": card_record[6].isoformat(),
         "updated_at": card_record[7].isoformat()
     }
@@ -701,13 +779,66 @@ async def update_card(
             detail="No tienes permiso para editar esta tarjeta"
         )
     
+    # Obtener el rol y ID del usuario actual
+    user_query = text("""
+        SELECT id, role FROM user_profiles 
+        WHERE auth_id = :auth_id OR email = :email
+        LIMIT 1
+    """)
+    user_result = db.execute(user_query, {"auth_id": current_user.id, "email": current_user.email})
+    user_record = user_result.fetchone()
+    
+    if not user_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    local_user_id = user_record[0]
+    user_role = user_record[1]
+    
+    # Verificar permisos específicos según el rol
+    if user_role == "member":
+        # Los miembros solo pueden ver, no editar
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Los miembros regulares no pueden editar tarjetas"
+        )
+    elif user_role == "developer":
+        # Los desarrolladores solo pueden editar tarjetas asignadas a ellos o sin asignar
+        dev_query = text("""
+            SELECT 1
+            FROM project_members pm1
+            JOIN project_members pm2 ON pm1.project_id = pm2.project_id
+            JOIN projects p ON pm1.project_id = p.id
+            JOIN boards b ON p.id = b.project_id
+            JOIN lists l ON b.id = l.board_id
+            JOIN cards c ON l.id = c.list_id
+            WHERE c.id = :card_id 
+              AND pm1.user_id = :user_id 
+              AND pm2.user_id = :assignee_id
+              AND pm1.project_id = pm2.project_id
+        """)
+        
+        dev_result = db.execute(dev_query, {
+            "card_id": card_id,
+            "user_id": local_user_id,
+            "assignee_id": current_list_id
+        })
+        
+        if not dev_result.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Los desarrolladores solo pueden editar sus propias tarjetas o tarjetas sin asignar"
+            )
+    
     # Si se cambia la lista, verificar que la nueva lista pertenece al mismo tablero
     new_list_id = card_data.list_id or current_list_id
     if new_list_id != current_list_id:
         list_query = text("""
             SELECT board_id
             FROM lists
-            WHERE id = :list_id AND is_active = true
+            WHERE id = :list_id
         """)
         
         result = db.execute(list_query, {"list_id": new_list_id})
@@ -749,9 +880,9 @@ async def update_card(
     if not set_clauses:
         # Si no hay campos para actualizar, devolver la tarjeta sin cambios
         get_card_query = text("""
-            SELECT id, title, description, list_id, position, due_date, created_at, updated_at
-            FROM cards
-            WHERE id = :card_id
+            SELECT c.id, c.title, c.description, c.list_id, c.position, c.due_date, c.created_at, c.updated_at
+            FROM cards c
+            WHERE c.id = :card_id
         """)
         
         result = db.execute(get_card_query, {"card_id": card_id})
@@ -788,6 +919,9 @@ async def update_card(
         "list_id": updated_card[3],
         "position": updated_card[4],
         "due_date": updated_card[5].isoformat() if updated_card[5] else None,
+        "assignee_id": None,
+        "assignee_name": None,
+        "assignee_email": None,
         "created_at": updated_card[6].isoformat(),
         "updated_at": updated_card[7].isoformat()
     }
@@ -865,7 +999,7 @@ async def is_board_accessible(board_id: str, current_user: AuthUser, db: Session
         SELECT b.id, b.project_id, p.created_by
         FROM boards b
         JOIN projects p ON b.project_id = p.id
-        WHERE b.id = :board_id AND b.is_active = true
+        WHERE b.id = :board_id
     """)
     
     board_result = db.execute(board_query, {"board_id": board_id})

@@ -4,6 +4,7 @@ import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { KanbanColumn } from '../components/KanbanColumn';
 import { useRoute } from 'wouter-preact';
 import { BoardService, UpdateBoardOrder } from '../../domain/services/BoardService';
+import { ProjectService } from '../../domain/services/ProjectService';
 
 // Tipos
 interface Card {
@@ -13,6 +14,9 @@ interface Card {
   dueDate?: string;
   list_id: string;
   position: number;
+  assignee_id?: string;
+  assignee_name?: string;
+  assignee_email?: string;
   attachments?: number;
   checklistProgress?: {
     completed: number;
@@ -21,7 +25,7 @@ interface Card {
   assignee?: {
     id: string;
     name: string;
-    avatar: string;
+    avatar?: string;
   };
 }
 
@@ -44,7 +48,9 @@ export const BoardPage: FunctionComponent = () => {
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [developers, setDevelopers] = useState<any[]>([]);
   const boardService = new BoardService();
+  const projectService = new ProjectService();
 
   // Cargar datos del tablero
   useEffect(() => {
@@ -54,8 +60,19 @@ export const BoardPage: FunctionComponent = () => {
       try {
         setLoading(true);
         const boardData = await boardService.getBoardData(boardId);
-        setBoard(boardData);
+        setBoard(boardData as any);
         setError(null);
+        
+        // Si tenemos el board, cargar los desarrolladores del proyecto
+        if (boardData && boardData.project_id) {
+          try {
+            const devs = await ProjectService.getDevelopers(boardData.project_id);
+            setDevelopers(devs);
+          } catch (err) {
+            console.error('Error loading developers:', err);
+            // No establecer error general para que al menos se muestre el tablero
+          }
+        }
       } catch (err) {
         console.error('Error loading board data:', err);
         setError('Error al cargar los datos del tablero. Por favor, intenta de nuevo.');
@@ -124,7 +141,15 @@ export const BoardPage: FunctionComponent = () => {
                   description: newCard.description,
                   dueDate: newCard.due_date,
                   list_id: newCard.list_id,
-                  position: newCard.position
+                  position: newCard.position,
+                  assignee_id: newCard.assignee_id,
+                  assignee_name: newCard.assignee_name,
+                  assignee_email: newCard.assignee_email,
+                  assignee: newCard.assignee_id ? {
+                    id: newCard.assignee_id,
+                    name: newCard.assignee_name || 'Usuario',
+                    avatar: undefined
+                  } : undefined
                 }]
               };
             }
@@ -261,6 +286,7 @@ export const BoardPage: FunctionComponent = () => {
               column={column}
               onCardUpdate={handleCardUpdate}
               onAddCard={handleAddCard}
+              availableDevelopers={developers}
             />
           ))}
         </div>

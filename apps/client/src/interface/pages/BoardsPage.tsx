@@ -9,7 +9,7 @@ interface BoardTemplate {
   description: string;
   image: string;
   type: 'template';
-}
+} 
 
 interface Board {
   id: string;

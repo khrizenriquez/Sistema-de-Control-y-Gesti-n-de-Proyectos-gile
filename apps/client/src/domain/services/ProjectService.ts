@@ -96,4 +96,21 @@ export class ProjectService {
       return [];
     }
   }
+
+  static async getDevelopers(projectId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/api/projects/${projectId}/members`);
+      // Filtrar para obtener solo los desarrolladores
+      const developers = response.data.filter((member: any) => member.role === 'developer');
+      return developers.map((dev: any) => ({
+        id: dev.user_id,
+        email: dev.email,
+        name: dev.email.split('@')[0], // Simplificado para este ejemplo
+        added_at: dev.added_at
+      }));
+    } catch (error) {
+      console.error('Error fetching developers:', error);
+      throw error;
+    }
+  }
 } 

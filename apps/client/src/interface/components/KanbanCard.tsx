@@ -35,7 +35,7 @@ interface CardData {
   assignee?: {
     id: string;
     name: string;
-    avatar: string;
+    avatar?: string;
   };
 }
 
@@ -43,9 +43,20 @@ interface KanbanCardProps {
   card: CardData;
   index: number;
   onUpdate?: (cardId: string, updates: Partial<CardData>) => void;
+  availableDevelopers?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  }>;
 }
 
-export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ card, index, onUpdate }) => {
+export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ 
+  card, 
+  index, 
+  onUpdate, 
+  availableDevelopers 
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleCardClick = (e: MouseEvent) => {
@@ -144,6 +155,7 @@ export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ card, index, on
           }}
           onClose={handleModalClose}
           onUpdate={handleCardUpdate}
+          availableDevelopers={availableDevelopers}
         />
       )}
     </>

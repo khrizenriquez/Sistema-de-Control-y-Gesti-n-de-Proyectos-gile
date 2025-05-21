@@ -11,6 +11,9 @@ type ColumnCardType = {
   dueDate?: string;
   list_id?: string;
   position?: number;
+  assignee_id?: string; 
+  assignee_name?: string;
+  assignee_email?: string;
   attachments?: number;
   checklistProgress?: {
     completed: number;
@@ -19,7 +22,7 @@ type ColumnCardType = {
   assignee?: {
     id: string;
     name: string;
-    avatar: string;
+    avatar?: string;
   };
 };
 
@@ -31,12 +34,19 @@ interface KanbanColumnProps {
   };
   onCardUpdate?: (cardId: string, updates: Partial<ColumnCardType>) => void;
   onAddCard?: (listId: string, title: string) => void;
+  availableDevelopers?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  }>;
 }
 
 export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({ 
   column, 
   onCardUpdate,
-  onAddCard
+  onAddCard,
+  availableDevelopers
 }) => {
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState('');
@@ -120,6 +130,7 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
                 card={convertCardFormat(card)}
                 index={index}
                 onUpdate={handleCardUpdate}
+                availableDevelopers={availableDevelopers}
               />
             ))}
             {provided.placeholder}

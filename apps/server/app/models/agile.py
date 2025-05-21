@@ -100,12 +100,14 @@ class Card(BaseModel, table=True):
     list_id: str = Field(foreign_key="lists.id")
     position: int = 0
     due_date: Optional[datetime] = None
+    assignee_id: Optional[str] = Field(default=None, foreign_key="user_profiles.id")
     
     # Relaciones - usar mismo patrón que los demás modelos
     list = Relationship(sa_relationship=relationship("List", back_populates="cards"))
     tasks: List["Task"] = Relationship(sa_relationship=relationship("Task", back_populates="card"))
     comments: List["Comment"] = Relationship(sa_relationship=relationship("Comment", back_populates="card"))
     labels: List["CardLabel"] = Relationship(sa_relationship=relationship("CardLabel", back_populates="card"))
+    assignee = Relationship(sa_relationship=relationship("UserProfile", foreign_keys=[assignee_id]))
 
 class Task(BaseModel, table=True):
     """Tarea"""

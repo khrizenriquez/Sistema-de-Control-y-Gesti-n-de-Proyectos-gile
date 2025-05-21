@@ -5,6 +5,7 @@ export interface BoardData {
   id: string;
   title: string;
   description?: string;
+  project_id: string;
   columns: Column[];
 }
 
@@ -47,6 +48,9 @@ export interface Card {
   list_id: string;
   position: number;
   due_date?: string;
+  assignee_id?: string;
+  assignee_name?: string;
+  assignee_email?: string;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +60,7 @@ export interface CreateCardRequest {
   description?: string;
   position?: number;
   due_date?: string;
+  assignee_id?: string;
 }
 
 export interface UpdateCardRequest {
@@ -64,6 +69,7 @@ export interface UpdateCardRequest {
   position?: number;
   due_date?: string;
   list_id?: string;
+  assignee_id?: string;
 }
 
 export class BoardService {
@@ -92,7 +98,16 @@ export class BoardService {
               description: card.description,
               dueDate: card.due_date,
               list_id: card.list_id,
-              position: card.position
+              position: card.position,
+              assignee_id: card.assignee_id,
+              assignee_name: card.assignee_name,
+              assignee_email: card.assignee_email,
+              // Convertir datos del asignado al formato que espera el componente
+              assignee: card.assignee_id ? {
+                id: card.assignee_id,
+                name: card.assignee_name || 'Usuario',
+                avatar: undefined
+              } : undefined
             }))
           };
         })
@@ -102,6 +117,7 @@ export class BoardService {
         id: boardId,
         title: board.name,
         description: '',
+        project_id: board.project_id,
         columns
       };
     } catch (error) {
