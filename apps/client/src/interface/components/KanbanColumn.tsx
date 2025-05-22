@@ -106,8 +106,8 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
     <div className="w-80 flex-shrink-0">
       {/* Column Header */}
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-gray-800 font-semibold">{column.title}</h2>
-        <button className="text-gray-500 hover:text-gray-700">
+        <h2 className="text-gray-800 dark:text-white font-semibold">{column.title}</h2>
+        <button className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
           </svg>
@@ -121,7 +121,7 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={`min-h-[200px] rounded-lg p-2 ${
-              snapshot.isDraggingOver ? 'bg-gray-100' : 'bg-gray-50'
+              snapshot.isDraggingOver ? 'bg-gray-100 dark:bg-gray-700' : 'bg-gray-50 dark:bg-gray-800'
             }`}
           >
             {column.cards.map((card, index) => (
@@ -142,9 +142,9 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
       {isToDoColumn && (
         <>
           {isAddingCard ? (
-            <form onSubmit={handleAddCard} className="mt-2 p-2 bg-white rounded shadow-sm">
+            <form onSubmit={handleAddCard} className="mt-2 p-2 bg-white dark:bg-gray-700 rounded shadow-sm">
               <textarea
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none dark:bg-gray-600 dark:text-white dark:border-gray-600"
                 placeholder="Enter card title"
                 value={newCardTitle}
                 onInput={(e) => setNewCardTitle((e.target as HTMLTextAreaElement).value)}
@@ -154,7 +154,7 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
               <div className="flex justify-end mt-2">
                 <button
                   type="button"
-                  className="mr-2 px-3 py-1 text-gray-600 hover:text-gray-800"
+                  className="mr-2 px-3 py-1 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
                   onClick={() => {
                     setIsAddingCard(false);
                     setNewCardTitle('');
@@ -165,7 +165,7 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300"
+                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-800"
                   disabled={!newCardTitle.trim() || isSubmitting}
                 >
                   {isSubmitting ? 'Adding...' : 'Add Card'}
@@ -174,7 +174,7 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
             </form>
           ) : (
             <button 
-              className="w-full mt-2 p-2 flex items-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+              className="w-full mt-2 p-2 flex items-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700"
               onClick={() => setIsAddingCard(true)}
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

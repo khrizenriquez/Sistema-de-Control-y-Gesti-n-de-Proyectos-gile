@@ -3,8 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { KanbanColumn } from '../components/KanbanColumn';
 import { useRoute } from 'wouter-preact';
-import { BoardService, UpdateBoardOrder } from '../../domain/services/BoardService';
-import { ProjectService } from '../../domain/services/ProjectService';
+import { BoardService, UpdateBoardOrder, User } from '../../domain/services/BoardService';
 
 // Tipos
 interface Card {
@@ -27,6 +26,7 @@ interface Card {
     name: string;
     avatar?: string;
   };
+  cover_color?: string;
 }
 
 interface Column {
@@ -39,7 +39,10 @@ interface Board {
   id: string;
   title: string;
   description?: string;
+  project_id: string;
+  project_name?: string;
   columns: Column[];
+  developers?: User[];
 }
 
 export const BoardPage: FunctionComponent = () => {
@@ -48,9 +51,8 @@ export const BoardPage: FunctionComponent = () => {
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [developers, setDevelopers] = useState<any[]>([]);
+  const [developers, setDevelopers] = useState<User[]>([]);
   const boardService = new BoardService();
-  const projectService = new ProjectService();
 
   // Cargar datos del tablero
   useEffect(() => {
@@ -61,18 +63,13 @@ export const BoardPage: FunctionComponent = () => {
         setLoading(true);
         const boardData = await boardService.getBoardData(boardId);
         setBoard(boardData as any);
-        setError(null);
         
-        // Si tenemos el board, cargar los desarrolladores del proyecto
-        if (boardData && boardData.project_id) {
-          try {
-            const devs = await ProjectService.getDevelopers(boardData.project_id);
-            setDevelopers(devs);
-          } catch (err) {
-            console.error('Error loading developers:', err);
-            // No establecer error general para que al menos se muestre el tablero
-          }
+        // Usar los desarrolladores que vienen con los datos del tablero
+        if (boardData && boardData.developers) {
+          setDevelopers(boardData.developers);
         }
+        
+        setError(null);
       } catch (err) {
         console.error('Error loading board data:', err);
         setError('Error al cargar los datos del tablero. Por favor, intenta de nuevo.');
@@ -94,7 +91,9 @@ export const BoardPage: FunctionComponent = () => {
         title: updates.title,
         description: updates.description,
         due_date: updates.dueDate,
-        list_id: updates.list_id
+        list_id: updates.list_id,
+        assignee_id: updates.assignee_id,
+        cover_color: updates.cover_color
       });
 
       // Actualizar el estado local
@@ -145,6 +144,7 @@ export const BoardPage: FunctionComponent = () => {
                   assignee_id: newCard.assignee_id,
                   assignee_name: newCard.assignee_name,
                   assignee_email: newCard.assignee_email,
+                  cover_color: newCard.cover_color,
                   assignee: newCard.assignee_id ? {
                     id: newCard.assignee_id,
                     name: newCard.assignee_name || 'Usuario',
@@ -275,6 +275,9 @@ export const BoardPage: FunctionComponent = () => {
     <div className="p-6">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{board.title}</h1>
+        {board.project_name && (
+          <p className="text-sm text-blue-600">Proyecto: {board.project_name}</p>
+        )}
         {board.description && <p className="text-gray-600">{board.description}</p>}
       </header>
 

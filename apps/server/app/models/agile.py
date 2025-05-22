@@ -101,6 +101,7 @@ class Card(BaseModel, table=True):
     position: int = 0
     due_date: Optional[datetime] = None
     assignee_id: Optional[str] = Field(default=None, foreign_key="user_profiles.id")
+    cover_color: Optional[str] = None
     
     # Relaciones - usar mismo patrón que los demás modelos
     list = Relationship(sa_relationship=relationship("List", back_populates="cards"))
