@@ -18,10 +18,15 @@ class Project(BaseModel, table=True):
     name: str
     description: Optional[str] = None
     owner_id: str = Field(foreign_key="user_profiles.id")
+    created_by: Optional[str] = Field(default=None, foreign_key="user_profiles.id")
     
     # Relaciones
     owner = Relationship(
-        sa_relationship=relationship("UserProfile", back_populates="owned_projects")
+        sa_relationship=relationship("UserProfile", back_populates="owned_projects", foreign_keys=[owner_id])
+    )
+    
+    creator = Relationship(
+        sa_relationship=relationship("UserProfile", foreign_keys=[created_by])
     )
     
     members = Relationship(

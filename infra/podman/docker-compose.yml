@@ -27,10 +27,17 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://agileuser:${DB_PASSWORD:-agilepassword}@db:5432/agiledb
       - SECRET_KEY=${SECRET_KEY:-temporary_secret_key_change_this_in_production}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=agileuser
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-agilepassword}
+      - POSTGRES_DB=agiledb
+      - INITIALIZE_DB=true
     restart: always
     networks:
       - frontend-network
@@ -45,12 +52,11 @@ services:
 
   db:
     image: postgres:15-alpine
-    container_name: postgres_db
+    container_name: db
     environment:
       POSTGRES_USER: agileuser
       POSTGRES_PASSWORD: ${DB_PASSWORD:-agilepassword}
       POSTGRES_DB: agiledb
-      PGDATA: /var/lib/postgresql/data/pgdata
       # Optimizaciones para PostgreSQL
       POSTGRES_SHARED_BUFFERS: 64MB
       POSTGRES_EFFECTIVE_CACHE_SIZE: 128MB
@@ -70,9 +76,10 @@ services:
           memory: 250M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agileuser"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
 networks:
   frontend-network:
@@ -82,4 +89,6 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
   server-data:
+    driver: local

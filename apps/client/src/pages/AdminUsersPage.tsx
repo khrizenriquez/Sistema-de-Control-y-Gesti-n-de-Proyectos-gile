@@ -3,11 +3,14 @@ import { useEffect, useState } from 'preact/hooks';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'wouter-preact';
 import UserManagementForm from '../components/UserManagement/UserManagementForm';
+import { useTheme } from '../context/ThemeContext';
 
 const AdminUsersPage = () => {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
 
   useEffect(() => {
     // Redirigir a inicio de sesión si no está autenticado
@@ -42,8 +45,12 @@ const AdminUsersPage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Panel de Administración</h1>
-        <p className="text-gray-600">Gestiona los usuarios del sistema</p>
+        <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          Panel de Administración
+        </h1>
+        <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          Gestiona los usuarios del sistema
+        </p>
       </div>
 
       <UserManagementForm />

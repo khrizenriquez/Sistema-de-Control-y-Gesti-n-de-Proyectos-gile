@@ -1,5 +1,6 @@
 import { FunctionComponent } from 'preact';
 import { Link, useLocation } from 'wouter-preact';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -7,6 +8,8 @@ interface SidebarProps {
 
 export const Sidebar: FunctionComponent<SidebarProps> = ({ isOpen }) => {
   const [location] = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   // Función para verificar si un enlace está activo
   const isActive = (path: string) => {
@@ -17,6 +20,9 @@ export const Sidebar: FunctionComponent<SidebarProps> = ({ isOpen }) => {
       return true;
     }
     if (path === '/teams' && (location === '/teams' || location.startsWith('/teams/'))) {
+      return true;
+    }
+    if (path === '/projects' && (location === '/projects' || location.startsWith('/projects/'))) {
       return true;
     }
     return location === path;
@@ -55,6 +61,17 @@ export const Sidebar: FunctionComponent<SidebarProps> = ({ isOpen }) => {
             Inicio
           </div>
         </Link>
+        
+        {isAdmin && (
+          <Link href="/projects">
+            <div className={`${baseLinkClass} ${isActive('/projects') ? activeLinkClass : inactiveLinkClass}`}>
+              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Proyectos
+            </div>
+          </Link>
+        )}
         
         <Link href="/boards">
           <div className={`${baseLinkClass} ${isActive('/boards') ? activeLinkClass : inactiveLinkClass}`}>

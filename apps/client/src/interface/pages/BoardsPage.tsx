@@ -1,5 +1,7 @@
 import { FunctionComponent } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Link } from 'wouter-preact';
+import { BoardService, Board as ApiBoard } from '../../domain/services/BoardService';
 
 interface BoardTemplate {
   id: string;
@@ -7,7 +9,7 @@ interface BoardTemplate {
   description: string;
   image: string;
   type: 'template';
-}
+} 
 
 interface Board {
   id: string;
@@ -19,6 +21,29 @@ interface Board {
 }
 
 export const BoardsPage: FunctionComponent = () => {
+  const [boards, setBoards] = useState<ApiBoard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchBoards = async () => {
+      try {
+        setLoading(true);
+        const boardService = new BoardService();
+        const boardsData = await boardService.getBoards();
+        setBoards(boardsData);
+        setError(null);
+      } catch (err) {
+        console.error('Error al cargar los tableros:', err);
+        setError('Error al cargar los tableros. Por favor, intenta de nuevo más tarde.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBoards();
+  }, []);
+
   const templates: BoardTemplate[] = [
     {
       id: 'kanban',
@@ -36,24 +61,33 @@ export const BoardsPage: FunctionComponent = () => {
     },
   ];
 
-  const recentBoards: Board[] = [
-    {
-      id: 'board-1',
-      title: 'Desarrollo Frontend',
-      description: 'Equipo de desarrollo frontend',
-      background: 'bg-gradient-to-r from-blue-400 to-blue-600',
-      type: 'board',
-      lastViewed: 'Hace 2 días',
-    },
-    {
-      id: 'board-2',
-      title: 'Marketing Q2',
-      description: 'Planificación de marketing para Q2',
-      background: 'bg-gradient-to-r from-purple-400 to-purple-600',
-      type: 'board',
-      lastViewed: 'Ayer',
-    },
-  ];
+  // Función para generar un color de fondo aleatorio para los tableros
+  const getBoardBackground = (boardId: string) => {
+    const backgrounds = [
+      'bg-gradient-to-r from-blue-400 to-blue-600',
+      'bg-gradient-to-r from-purple-400 to-purple-600',
+      'bg-gradient-to-r from-green-400 to-green-600',
+      'bg-gradient-to-r from-red-400 to-red-600',
+      'bg-gradient-to-r from-yellow-400 to-yellow-600',
+      'bg-gradient-to-r from-indigo-400 to-indigo-600',
+    ];
+    
+    // Usar el ID del tablero para seleccionar un fondo consistente
+    const index = boardId.charCodeAt(0) % backgrounds.length;
+    return backgrounds[index];
+  };
+
+  // Formatear la fecha para mostrar "hace X días"
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    return `Hace ${diffDays} días`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -126,32 +160,55 @@ export const BoardsPage: FunctionComponent = () => {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {recentBoards.map((board) => (
-            <Link href={`/boards/${board.id}`} key={board.id}>
-              <a className="block group">
-                <div className={`relative aspect-video rounded-lg overflow-hidden mb-3 ${board.background}`}>
-                  <div className="absolute inset-0 bg-black bg-opacity-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="absolute bottom-2 right-2 flex space-x-2">
-                      <button className="p-1 bg-gray-800 bg-opacity-50 rounded hover:bg-opacity-70">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                        </svg>
-                      </button>
-                      <button className="p-1 bg-gray-800 bg-opacity-50 rounded hover:bg-opacity-70">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                        </svg>
-                      </button>
+        
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
+        
+        {!loading && !error && boards.length === 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-8 rounded text-center">
+            <p className="mb-2 font-medium">No hay tableros disponibles</p>
+            <p className="text-sm">Para crear un tablero, primero necesitas tener al menos un proyecto. Por favor, contacta a un administrador para crear un proyecto.</p>
+          </div>
+        )}
+        
+        {!loading && boards.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {boards.map((board) => (
+              <Link href={`/boards/${board.id}`} key={board.id}>
+                <a className="block group">
+                  <div className={`relative aspect-video rounded-lg overflow-hidden mb-3 ${getBoardBackground(board.id)}`}>
+                    <div className="absolute inset-0 bg-black bg-opacity-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute bottom-2 right-2 flex space-x-2">
+                        <button className="p-1 bg-gray-800 bg-opacity-50 rounded hover:bg-opacity-70">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                          </svg>
+                        </button>
+                        <button className="p-1 bg-gray-800 bg-opacity-50 rounded hover:bg-opacity-70">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <h3 className="font-medium text-gray-800 mb-1">{board.title}</h3>
-                <p className="text-sm text-gray-500">{board.lastViewed}</p>
-              </a>
-            </Link>
-          ))}
-        </div>
+                  <h3 className="font-medium text-gray-800 mb-1">{board.name}</h3>
+                  <p className="text-sm text-gray-500">{formatDate(board.created_at)}</p>
+                  <p className="text-xs text-gray-400">{board.project_name}</p>
+                </a>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

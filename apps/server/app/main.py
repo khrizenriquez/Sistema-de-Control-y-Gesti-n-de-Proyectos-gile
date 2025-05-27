@@ -27,31 +27,35 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Configuración de CORS
-origins = ["*"]  # Allow all origins for debugging
+# Configuración de CORS mejorada
+origins = [
+    "http://localhost:3000",     # Frontend React/Preact
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",     # Vite dev server
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",     # Backend para desarrollo local
+    "http://127.0.0.1:8000",
+    "*",                         # Permitir todos los orígenes para desarrollo
+]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["Content-Type", "Authorization"],
+    max_age=600,  # Preflight cache time in seconds
 )
 
 # Importar routers
-from app.routers import users, auth
-# Importar router de proyectos si existe
-# try:
-#     from app.routers import projects
-#     app.include_router(projects.router, prefix=settings.API_PREFIX)
-#     logger.info("Router de proyectos incluido correctamente")
-# except ImportError:
-#     logger.warning("Router de proyectos no encontrado o con errores, no se incluirá en la API")
+from app.routers import users, auth, boards, projects
 
 # Incluir routers en la aplicación
 app.include_router(users.router, prefix=settings.API_PREFIX)
 app.include_router(auth.router, prefix=settings.API_PREFIX)
+app.include_router(boards.router, prefix=settings.API_PREFIX)
+app.include_router(projects.router, prefix=settings.API_PREFIX)
 
 @app.on_event("startup")
 async def on_startup():

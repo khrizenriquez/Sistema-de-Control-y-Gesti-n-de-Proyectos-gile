@@ -143,9 +143,11 @@ def upgrade() -> None:
         sa.Column('list_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column('position', sa.Integer(), nullable=False),
         sa.Column('due_date', sa.DateTime(), nullable=True),
+        sa.Column('assignee_id', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column('id', sqlmodel.sql.sqltypes.GUID(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['assignee_id'], ['user_profiles.id'], ),
         sa.ForeignKeyConstraint(['list_id'], ['lists.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
