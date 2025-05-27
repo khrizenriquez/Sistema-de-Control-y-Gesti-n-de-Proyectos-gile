@@ -32,10 +32,11 @@ interface CardData {
     color?: string;
     image?: string;
   };
+  cover_color?: string;
   assignee?: {
     id: string;
     name: string;
-    avatar: string;
+    avatar?: string;
   };
 }
 
@@ -43,9 +44,20 @@ interface KanbanCardProps {
   card: CardData;
   index: number;
   onUpdate?: (cardId: string, updates: Partial<CardData>) => void;
+  availableDevelopers?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  }>;
 }
 
-export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ card, index, onUpdate }) => {
+export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ 
+  card, 
+  index, 
+  onUpdate, 
+  availableDevelopers 
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleCardClick = (e: MouseEvent) => {
@@ -73,42 +85,45 @@ export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ card, index, on
             {...provided.draggableProps}
             {...provided.dragHandleProps}
             onClick={handleCardClick}
-            className={`bg-white rounded-lg shadow-sm p-3 mb-2 cursor-pointer hover:bg-gray-50 ${
+            className={`rounded-lg shadow-sm p-3 mb-2 cursor-pointer ${
+              card.cover_color ? '' : 'bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600'
+            } ${
               snapshot.isDragging ? 'shadow-lg' : ''
             }`}
+            style={card.cover_color ? { backgroundColor: card.cover_color, color: '#fff' } : {}}
           >
             {/* Card Title */}
-            <h3 className="text-gray-800 font-medium mb-2">{card.title}</h3>
+            <h3 className={`font-medium mb-2 ${card.cover_color ? 'text-white' : 'text-gray-800 dark:text-white'}`}>{card.title}</h3>
 
             {/* Card Metadata */}
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
               {/* Due Date */}
               {card.dueDate && (
                 <div className="flex items-center space-x-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-4 h-4 ${card.cover_color ? 'text-white' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span>{card.dueDate}</span>
+                  <span className={card.cover_color ? 'text-white' : ''}>{card.dueDate}</span>
                 </div>
               )}
 
               {/* Attachments */}
               {card.attachments && card.attachments.length > 0 && (
                 <div className="flex items-center space-x-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-4 h-4 ${card.cover_color ? 'text-white' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
-                  <span>{card.attachments.length}</span>
+                  <span className={card.cover_color ? 'text-white' : ''}>{card.attachments.length}</span>
                 </div>
               )}
 
               {/* Checklist Progress */}
               {card.checklistProgress && (
                 <div className="flex items-center space-x-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-4 h-4 ${card.cover_color ? 'text-white' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  <span>{card.checklistProgress.completed}/{card.checklistProgress.total}</span>
+                  <span className={card.cover_color ? 'text-white' : ''}>{card.checklistProgress.completed}/{card.checklistProgress.total}</span>
                 </div>
               )}
             </div>
@@ -139,11 +154,13 @@ export const KanbanCard: FunctionComponent<KanbanCardProps> = ({ card, index, on
             dueDate: card.dueDate,
             attachments: card.attachments,
             checklists: card.checklists,
-            cover: card.cover,
-            assignee: card.assignee
+            cover: card.cover_color ? { color: card.cover_color } : card.cover,
+            assignee: card.assignee,
+            assignee_id: card.assignee?.id
           }}
           onClose={handleModalClose}
           onUpdate={handleCardUpdate}
+          availableDevelopers={availableDevelopers}
         />
       )}
     </>

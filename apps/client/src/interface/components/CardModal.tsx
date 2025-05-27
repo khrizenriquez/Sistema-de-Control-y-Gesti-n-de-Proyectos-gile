@@ -1,5 +1,6 @@
 import { FunctionComponent } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
+import { api } from '../../infrastructure/api';
 
 interface ChecklistItem {
   id: string;
@@ -19,6 +20,7 @@ interface CardModalProps {
     title: string;
     description?: string;
     dueDate?: string;
+    assignee_id?: string;
     attachments?: Array<{
       id: string;
       url: string;
@@ -33,8 +35,9 @@ interface CardModalProps {
     assignee?: {
       id: string;
       name: string;
-      avatar: string;
+      avatar?: string;
     };
+    cover_color?: string;
   };
   onClose: () => void;
   onUpdate: (cardId: string, updates: Partial<CardModalProps['card']>) => void;
@@ -46,9 +49,15 @@ interface CardModalProps {
       title: string;
     }>;
   }>;
+  availableDevelopers?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  }>;
 }
 
-export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, onUpdate, availableBoards }) => {
+export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, onUpdate, availableBoards, availableDevelopers }) => {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [isWatching, setIsWatching] = useState(false);
@@ -59,6 +68,37 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [selectedColor, setSelectedColor] = useState(card.cover?.color || '');
+  const [selectedAssignee, setSelectedAssignee] = useState(card.assignee_id || '');
+  const [activities, setActivities] = useState<Array<{
+    id: string;
+    type: string;
+    message: string;
+    user: { name: string; avatar?: string };
+    timestamp: string;
+  }>>([]);
+  const [comments, setComments] = useState<Array<{
+    id: string;
+    content: string;
+    user_name: string;
+    created_at: string;
+  }>>([]);
+  const [comment, setComment] = useState('');
+  const [userInitial, setUserInitial] = useState('');
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  // Obtener información del usuario actual
+  useEffect(() => {
+    // En una implementación real, esto vendría del contexto de autenticación
+    const userInfo = localStorage.getItem('userProfile');
+    if (userInfo) {
+      try {
+        const user = JSON.parse(userInfo);
+        setUserInitial(user.email ? user.email[0].toUpperCase() : 'U');
+      } catch (e) {
+        setUserInitial('U');
+      }
+    }
+  }, [card.id]);
 
   // Manejadores para los modales
   const handleChecklistClick = () => {
@@ -85,6 +125,47 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
     setShowCopyModal(true);
   };
 
+  const handleAssigneeChange = async (e: Event) => {
+    const assigneeId = (e.target as HTMLSelectElement).value;
+    const originalAssignee = selectedAssignee;
+    
+    try {
+      setSelectedAssignee(assigneeId);
+      
+      if (assigneeId) {
+        const developer = availableDevelopers?.find(dev => dev.id === assigneeId);
+        
+        // Asegurarnos de que estamos enviando el assignee_id correctamente
+        const updates: Partial<CardModalProps['card']> = {
+          assignee_id: assigneeId
+        };
+
+        // Si tenemos la información del desarrollador, también la incluimos
+        if (developer) {
+          updates.assignee = {
+            id: developer.id,
+            name: developer.name,
+            avatar: developer.avatar
+          };
+        }
+        
+        console.log('Actualizando tarjeta con asignado:', updates);
+        await onUpdate(card.id, updates);
+      } else {
+        // Si no hay asignado, enviamos undefined para ambos campos
+        console.log('Eliminando asignado de la tarjeta');
+        await onUpdate(card.id, {
+          assignee_id: undefined,
+          assignee: undefined
+        });
+      }
+    } catch (error) {
+      console.error('Error updating assignee:', error);
+      // Reset to original value if there was an error
+      setSelectedAssignee(originalAssignee);
+    }
+  };
+
   const saveChanges = () => {
     onUpdate(card.id, {
       title,
@@ -98,9 +179,48 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
       cover: {
         ...card.cover,
         color
-      }
+      },
+      cover_color: color
     });
+    // Cerrar el modal después de seleccionar un color
+    setShowCoverModal(false);
   };
+
+  useEffect(() => {
+    // Inicializar el color basado en card.cover o card.cover_color
+    if (card.cover?.color) {
+      setSelectedColor(card.cover.color);
+    } else if (card.cover_color) {
+      setSelectedColor(card.cover_color);
+    }
+  }, [card.cover, card.cover_color]);
+
+  // Función para cargar estados iniciales
+  useEffect(() => {
+    if (card.id) {
+      // Cargar comentarios de la tarjeta
+      const loadCardComments = async () => {
+        try {
+          setIsLoadingComments(true);
+          const response = await api.get(`/api/boards/cards/${card.id}/comments`);
+          if (response) {
+            setComments(response.data);
+          }
+        } catch (error) {
+          console.error('Error loading comments:', error);
+        } finally {
+          setIsLoadingComments(false);
+        }
+      };
+
+      loadCardComments();
+    }
+    
+    // Inicializar el asignado si existe
+    if (card.assignee_id && availableDevelopers) {
+      setSelectedAssignee(card.assignee_id);
+    }
+  }, [card.id]);
 
   const getHeaderStyle = () => {
     if (selectedColor) {
@@ -116,6 +236,23 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
   const handleClose = () => {
     saveChanges();
     onClose();
+  };
+
+  const handleAddComment = async () => {
+    if (!comment.trim()) return;
+    
+    try {
+      // Enviar comentario al backend
+      const response = await api.post(`/api/boards/cards/${card.id}/comments`, { content: comment });
+      
+      if (response) {
+        setComments(prev => [response.data, ...prev]);
+        setComment('');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      alert('Error al añadir comentario. Por favor, intenta de nuevo.');
+    }
   };
 
   return (
@@ -218,84 +355,158 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
-                    {card.assignee?.name[0] || 'U'}
+                    {userInitial}
                   </div>
-                  <input
-                    type="text"
-                    className="flex-1 bg-gray-700 text-gray-100 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 border-none"
-                    placeholder="Write a comment..."
-                  />
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={comment}
+                      onChange={(e) => setComment(e.currentTarget.value)}
+                      className="w-full bg-gray-700 text-gray-100 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 border-none"
+                      placeholder="Write a comment..."
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                    />
+                  </div>
+                </div>
+                
+                {/* Historial de actividades */}
+                <div className="mt-4 space-y-4">
+                  {isLoadingComments ? (
+                    <div className="text-center py-4">
+                      <div className="animate-pulse flex space-x-4 items-center">
+                        <div className="rounded-full bg-gray-700 h-10 w-10"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                          <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      No hay comentarios. ¡Sé el primero en comentar!
+                    </div>
+                  ) : (
+                    comments.map(comment => (
+                      <div key={comment.id} className="flex items-start space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white font-medium">
+                          {comment.user_name[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-300">{comment.user_name}</span>
+                            <span className="text-gray-500 ml-2">{new Date(comment.created_at).toLocaleString()}</span>
+                          </div>
+                          <p className="text-gray-300">{comment.content}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Right Column - Actions */}
-            <div className="w-48 space-y-4">
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium text-gray-400 uppercase">Add to card</h4>
-                <div className="space-y-2">
-                  <button 
-                    onClick={handleChecklistClick}
-                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-gray-300 hover:bg-gray-700 rounded"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <span>Checklist</span>
-                  </button>
-                  <button 
-                    onClick={handleDateClick}
-                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-gray-300 hover:bg-gray-700 rounded"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>Dates</span>
-                  </button>
-                  <button 
-                    onClick={handleAttachmentClick}
-                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-gray-300 hover:bg-gray-700 rounded"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                    </svg>
-                    <span>Attachment</span>
-                  </button>
-                  <button 
-                    onClick={handleCoverClick}
-                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-gray-300 hover:bg-gray-700 rounded"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>Cover</span>
-                  </button>
-                </div>
+            {/* Right Column - Sidebar */}
+            <div className="w-60 space-y-4">
+              <div className="text-center font-semibold text-gray-200 uppercase text-xs border-b border-gray-700 pb-2">
+                AÑADIR A TARJETA
               </div>
 
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium text-gray-400 uppercase">Actions</h4>
-                <div className="space-y-2">
-                  <button 
-                    onClick={handleMoveClick}
-                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-gray-300 hover:bg-gray-700 rounded"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                    </svg>
-                    <span>Move</span>
-                  </button>
-                  <button 
-                    onClick={handleCopyClick}
-                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-gray-300 hover:bg-gray-700 rounded"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <span>Copy</span>
-                  </button>
-                </div>
+              {/* Asignar a */}
+              <div>
+                <h4 className="text-sm text-gray-400 mb-2">Asignar a</h4>
+                <select
+                  value={selectedAssignee || ''}
+                  onChange={handleAssigneeChange}
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sin asignar</option>
+                  {availableDevelopers?.map(dev => (
+                    <option key={dev.id} value={dev.id}>
+                      {dev.name || dev.email}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* Checklist */}
+              <button
+                onClick={handleChecklistClick}
+                className="w-full flex items-center space-x-2 p-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14l2 2 4-4" />
+                </svg>
+                <span>Checklist</span>
+              </button>
+
+              {/* Date */}
+              <button
+                onClick={handleDateClick}
+                className="w-full flex items-center space-x-2 p-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Dates</span>
+              </button>
+
+              {/* Attachment */}
+              <button
+                onClick={handleAttachmentClick}
+                className="w-full flex items-center space-x-2 p-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                <span>Attachment</span>
+              </button>
+
+              {/* Cover */}
+              <button
+                onClick={handleCoverClick}
+                className="w-full flex items-center space-x-2 p-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Cover</span>
+              </button>
+
+              <div className="text-center font-semibold text-gray-200 uppercase text-xs border-b border-gray-700 py-2">
+                ACCIONES
+              </div>
+
+              {/* Move */}
+              <button
+                onClick={handleMoveClick}
+                className="w-full flex items-center space-x-2 p-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                <span>Move</span>
+              </button>
+
+              {/* Copy */}
+              <button
+                onClick={handleCopyClick}
+                className="w-full flex items-center space-x-2 p-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                </svg>
+                <span>Copy</span>
+              </button>
+
+              {/* Archive */}
+              <button
+                className="w-full flex items-center space-x-2 p-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                <span>Archive</span>
+              </button>
             </div>
           </div>
         </div>
@@ -333,7 +544,13 @@ export const CardModal: FunctionComponent<CardModalProps> = ({ card, onClose, on
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-sm text-gray-400">Colors</label>
-                  <button className="text-sm text-gray-400 hover:text-gray-200">
+                  <button 
+                    className="text-sm text-gray-400 hover:text-gray-200"
+                    onClick={() => {
+                      setSelectedColor('');
+                      handleColorSelect('');
+                    }}
+                  >
                     Remove cover
                   </button>
                 </div>

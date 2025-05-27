@@ -102,6 +102,16 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     if (error) {
       console.error('Error al obtener usuario actual:', error.message);
     }
+    
+    if (user) {
+      // Asegurarse de guardar el token de acceso para uso con nuestra API
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        localStorage.setItem('token', session.access_token);
+        localStorage.setItem('authToken', session.access_token);
+      }
+    }
+    
     return user;
   } catch (err) {
     console.error('Error inesperado al obtener usuario:', err);

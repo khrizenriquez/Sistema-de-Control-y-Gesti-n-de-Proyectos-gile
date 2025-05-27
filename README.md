@@ -19,6 +19,29 @@ La documentación incluye:
 - Sistema de autenticación
 - Flujo de desarrollo
 
+## Reglas de Permisos para Tableros
+
+El sistema implementa un conjunto de reglas específicas para la creación y gestión de tableros:
+
+### Roles de Usuario
+
+- **Administradores**: Pueden ver todos los tableros creados por los Product Managers que fueron registrados por ellos. Tienen acceso completo al sistema.
+- **Product Managers (PM)**: Son los únicos que pueden crear tableros. Solo pueden ver y administrar los tableros que ellos mismos han creado.
+- **Desarrolladores/Miembros**: Pueden ver y trabajar en los tableros a los que han sido asignados por un PM o Admin.
+
+### Flujo de Creación y Asignación
+
+1. Los **Product Managers** crean tableros para proyectos específicos.
+2. Los **PM** pueden agregar miembros a sus tableros, limitándose a usuarios creados por el mismo Admin que creó al PM.
+3. Los **Administradores** pueden ver todos los tableros creados por PMs que ellos registraron.
+4. Los **Miembros/Desarrolladores** solo pueden ver y trabajar en tableros a los que fueron explícitamente asignados.
+
+### Interfaces
+
+- `/boards/new`: Interfaz de creación de tableros (exclusiva para PMs)
+- `/boards`: Listado de tableros (filtrado según rol del usuario)
+- `/boards/board-id`: Vista individual de un tablero
+
 ## Requisitos previos
 
 - **Podman** (recomendado v4.0+)
@@ -106,6 +129,38 @@ Este modo:
 ## Arquitectura de la aplicación
 
 ![Arquitectura de la aplicación](https://github.com/user-attachments/assets/5a69b70e-85f5-4fb9-8a70-3aad89727d54)
+
+## Persistencia de Datos
+
+El sistema utiliza volúmenes de Docker/Podman para asegurar la persistencia de los datos, incluso cuando los contenedores se reinician o se detienen:
+
+- **postgres-data**: Almacena todos los datos de la base de datos PostgreSQL, garantizando que los proyectos, tableros y demás información persistan entre sesiones.
+- **server-data**: Guarda datos del servidor como archivos subidos o configuraciones locales.
+
+### Inicialización y Seeders
+
+La base de datos se inicializa utilizando un sistema de seeders en Python en lugar de scripts SQL puros. Esto proporciona varias ventajas:
+
+1. Mayor flexibilidad para la creación de datos iniciales
+2. Uso del ORM (SQLModel) para mantener consistencia con el resto del código
+3. Mejor manejo de relaciones complejas entre entidades
+4. Actualizaciones automáticas cuando cambian los modelos de datos
+
+Para controlar la inicialización, puede utilizar la variable de entorno `INITIALIZE_DB=true` en el servicio del servidor.
+
+### Respaldo y Restauración de la Base de Datos
+
+Para mayor seguridad, se incluyen scripts para respaldar y restaurar la base de datos:
+
+```bash
+# Crear un respaldo de la base de datos
+./infra/podman/backup-db.sh
+
+# Restaurar desde un respaldo
+./infra/podman/restore-db.sh ./infra/podman/backups/agiledb_backup_20231215_120000.sql.gz
+```
+
+Estos scripts garantizan que pueda recuperar sus datos en caso de problemas o transferirlos entre entornos.
 
 ## Acceso a la aplicación
 

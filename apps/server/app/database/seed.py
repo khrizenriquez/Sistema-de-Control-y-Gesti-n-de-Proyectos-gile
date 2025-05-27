@@ -40,28 +40,32 @@ def create_test_data():
             auth_id="supabase-auth-id-1",  # ID ficticio, se actualizaría con un ID real de Supabase
             first_name="Admin",
             last_name="Usuario",
-            email="admin@ingsistemas.gt"
+            email="admin@ingsistemas.gt",
+            role="admin"  # Asignar rol admin
         )
         
         developer = UserProfile(
             auth_id="supabase-auth-id-2",  # ID ficticio
             first_name="Desarrollador",
             last_name="Ejemplo",
-            email="dev@ingsistemas.gt"
+            email="dev@ingsistemas.gt",
+            role="developer"  # Asignar rol developer
         )
         
         pm = UserProfile(
             auth_id="supabase-auth-id-3",  # ID ficticio
             first_name="Project",
             last_name="Manager",
-            email="pm@ingsistemas.gt"
+            email="pm@ingsistemas.gt",
+            role="product_owner"  # Asignar rol product_owner
         )
         
         member = UserProfile(
             auth_id="supabase-auth-id-4",  # ID ficticio
             first_name="Miembro",
             last_name="Regular",
-            email="member@ingsistemas.gt"
+            email="member@ingsistemas.gt",
+            role="member"  # Asignar rol member
         )
         
         session.add(admin)

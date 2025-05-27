@@ -1,88 +1,65 @@
 import { FunctionComponent } from 'preact';
-import { useState } from 'preact/hooks';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'task' | 'mention' | 'invite' | 'system';
-  read: boolean;
-  date: Date;
-  sender?: {
-    name: string;
-    avatar: string;
-  };
-  link?: string;
-}
+import { useState, useEffect } from 'preact/hooks';
+import { NotificationService, NotificationUI } from '../../domain/services/NotificationService';
 
 export const NotificationsPage: FunctionComponent = () => {
-  // Datos de ejemplo para las notificaciones
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Asignación de tarea',
-      message: 'Te han asignado una nueva tarea en el tablero "Desarrollo Web"',
-      type: 'task',
-      read: false,
-      date: new Date(Date.now() - 1000 * 60 * 30), // 30 minutos atrás
-      sender: {
-        name: 'María García',
-        avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-      },
-      link: '/boards/1'
-    },
-    {
-      id: '2',
-      title: 'Mención en comentario',
-      message: 'Carlos te ha mencionado en un comentario: "@usuario ¿Podrías revisar este problema?"',
-      type: 'mention',
-      read: false,
-      date: new Date(Date.now() - 1000 * 60 * 60 * 3), // 3 horas atrás
-      sender: {
-        name: 'Carlos Rodríguez',
-        avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-      },
-      link: '/boards/2/card/15'
-    },
-    {
-      id: '3',
-      title: 'Invitación a un equipo',
-      message: 'Has sido invitado al equipo "Diseño UI/UX"',
-      type: 'invite',
-      read: true,
-      date: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 día atrás
-      sender: {
-        name: 'Laura Martínez',
-        avatar: 'https://randomuser.me/api/portraits/women/22.jpg',
-      },
-      link: '/teams/5'
-    },
-    {
-      id: '4',
-      title: 'Actualización del sistema',
-      message: 'El sistema se ha actualizado a la versión 2.3.0. Ver novedades.',
-      type: 'system',
-      read: true,
-      date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 días atrás
-      link: '/updates/2.3.0'
+  const [notifications, setNotifications] = useState<NotificationUI[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const notificationService = new NotificationService();
+
+  // Cargar notificaciones al montar el componente
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const loadNotifications = async (markAsRead: boolean = false) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await notificationService.getNotifications(markAsRead);
+      setNotifications(data);
+    } catch (err) {
+      console.error('Error loading notifications:', err);
+      setError('No se pudieron cargar las notificaciones. Por favor, intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
   // Función para marcar una notificación como leída
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    ));
+  const markAsRead = async (id: string) => {
+    try {
+      await notificationService.markAsRead(id);
+      // Actualizar el estado local
+      setNotifications(notifications.map(notification => 
+        notification.id === id ? { ...notification, read: true } : notification
+      ));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
   };
 
   // Función para marcar todas las notificaciones como leídas
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(notification => ({ ...notification, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      // Actualizar el estado local
+      setNotifications(notifications.map(notification => ({ ...notification, read: true })));
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
   };
 
   // Función para eliminar una notificación
-  const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter(notification => notification.id !== id));
+  const deleteNotification = async (id: string) => {
+    try {
+      await notificationService.deleteNotification(id);
+      setNotifications(notifications.filter(notification => notification.id !== id));
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
   };
 
   // Función para formatear la fecha
@@ -159,6 +136,41 @@ export const NotificationsPage: FunctionComponent = () => {
 
   const unreadCount = notifications.filter(notification => !notification.read).length;
 
+  // Mostrar indicador de carga
+  if (isLoading && notifications.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error si lo hay
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <svg className="w-16 h-16 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">{error}</p>
+            <button 
+              onClick={() => loadNotifications()}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+            >
+              Intentar de nuevo
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -207,20 +219,19 @@ export const NotificationsPage: FunctionComponent = () => {
                   onClick={(e) => {
                     if (!notification.read) {
                       e.preventDefault();
-                      markAsRead(notification.id);
-                      if (notification.link) {
-                        window.location.href = notification.link;
-                      }
+                      markAsRead(notification.id).then(() => {
+                        if (notification.link) {
+                          window.location.href = notification.link;
+                        }
+                      });
                     }
                   }}
                 >
                   {/* Icono o avatar */}
                   {notification.sender ? (
-                    <img
-                      src={notification.sender.avatar}
-                      alt={notification.sender.name}
-                      className="w-10 h-10 rounded-full"
-                    />
+                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                      {notification.sender.name.charAt(0).toUpperCase()}
+                    </div>
                   ) : (
                     getNotificationIcon(notification.type)
                   )}
