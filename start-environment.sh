@@ -95,6 +95,7 @@ fi
 print_message "Iniciando base de datos PostgreSQL..."
 podman run -d \
   --name db \
+  --restart=unless-stopped \
   --network=agile-network \
   -e POSTGRES_USER=agileuser \
   -e POSTGRES_PASSWORD=${DB_PASSWORD} \
@@ -105,7 +106,7 @@ podman run -d \
 
 # Esperar a que la base de datos esté lista
 print_message "Esperando a que la base de datos esté lista..."
-sleep 5
+sleep 10  # Aumentamos el tiempo de espera para mayor estabilidad
 
 # Asegurar que los roles de usuario estén correctamente configurados
 print_message "Asegurando roles de usuario correctos..."
@@ -116,6 +117,7 @@ if [ "$NO_PGADMIN" = false ]; then
   print_message "Iniciando pgAdmin..."
   podman run -d \
     --name pgadmin \
+    --restart=unless-stopped \
     --network=agile-network \
     -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
     -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
@@ -129,6 +131,7 @@ fi
 print_message "Iniciando servidor backend..."
 podman run -d \
   --name server \
+  --restart=unless-stopped \
   -p 8000:8000 \
   --network=agile-network \
   -e DATABASE_URL=postgresql+asyncpg://agileuser:${DB_PASSWORD}@db:5432/agiledb \
@@ -139,7 +142,7 @@ podman run -d \
 
 # Esperar a que el servidor esté listo
 print_message "Esperando a que el servidor esté listo..."
-sleep 5
+sleep 10  # Aumentamos el tiempo de espera para mayor estabilidad
 
 # Ejecutar script de sincronización de roles
 print_message "Ejecutando script de sincronización de roles..."
@@ -156,6 +159,7 @@ if [ "$DEV" = true ]; then
   print_message "Iniciando cliente en modo desarrollo con volúmenes montados..."
   podman run -d \
     --name client \
+    --restart=unless-stopped \
     -p 3000:5173 \
     --network=agile-network \
     -v "$(pwd)/apps/client/src:/app/src" \
@@ -179,6 +183,7 @@ else
   # Modo normal sin montar volúmenes
   podman run -d \
     --name client \
+    --restart=unless-stopped \
     -p 3000:5173 \
     --network=agile-network \
     localhost/client-dev:latest
