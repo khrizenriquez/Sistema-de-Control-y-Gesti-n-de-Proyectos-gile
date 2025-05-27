@@ -317,13 +317,20 @@ async def list_boards(
         """)
         result = db.execute(boards_query, {"user_id": local_user_id})
     else:
-        # Developer/Member: Ver tableros de proyectos donde es miembro
+        # Developer/Member: Ver tableros de proyectos donde es miembro O donde tiene tarjetas asignadas
         boards_query = text("""
-            SELECT b.id, b.name, b.project_id, p.name as project_name, b.created_at,
+            SELECT DISTINCT b.id, b.name, b.project_id, p.name as project_name, b.created_at,
                    COALESCE((SELECT COUNT(*) FROM lists WHERE board_id = b.id), 0) as list_count
             FROM boards b
             JOIN projects p ON b.project_id = p.id
-            JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = :user_id
+            LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = :user_id
+            LEFT JOIN lists l ON b.id = l.board_id
+            LEFT JOIN cards c ON l.id = c.list_id AND c.assignee_id = :user_id
+            WHERE (
+                pm.user_id = :user_id  -- Es miembro del proyecto
+                OR 
+                c.assignee_id = :user_id  -- Tiene tarjetas asignadas en este tablero
+            )
             ORDER BY b.created_at DESC
         """)
         result = db.execute(boards_query, {"user_id": local_user_id})
@@ -370,44 +377,14 @@ async def get_board(
         )
     
     # Verificar permisos - El usuario debe ser admin, product_owner del proyecto,
-    # o miembro del proyecto para ver el tablero
+    # miembro del proyecto, o tener tarjetas asignadas para ver el tablero
     
-    # Obtener el rol y el ID del usuario
-    user_query = text("""
-        SELECT id, role FROM user_profiles 
-        WHERE auth_id = :auth_id OR email = :email
-        LIMIT 1
-    """)
-    user_result = db.execute(user_query, {"auth_id": current_user.id, "email": current_user.email})
-    user_record = user_result.fetchone()
-    
-    if not user_record:
+    board_accessible = await is_board_accessible(board_id, current_user, db)
+    if not board_accessible:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para ver este tablero"
         )
-    
-    local_user_id = user_record[0]
-    user_role = user_record[1]
-    
-    project_id = board_record[2]
-    
-    # Si no es admin, verificar si es miembro del proyecto
-    if user_role != "admin":
-        member_query = text("""
-            SELECT 1 FROM project_members
-            WHERE project_id = :project_id AND user_id = :user_id
-        """)
-        member_result = db.execute(member_query, {
-            "project_id": project_id, 
-            "user_id": local_user_id
-        })
-        
-        if not member_result.fetchone():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para ver este tablero"
-            )
     
     return {
         "id": board_record[0],
@@ -1764,4 +1741,17 @@ async def is_board_accessible(board_id: str, current_user: AuthUser, db: Session
     
     member_result = db.execute(member_query, {"project_id": project_id, "user_id": local_user_id})
     
-    return member_result.fetchone() is not None 
+    if member_result.fetchone():
+        return True
+    
+    # Si no es miembro del proyecto, verificar si tiene tarjetas asignadas en este tablero
+    assigned_cards_query = text("""
+        SELECT 1 FROM cards c
+        JOIN lists l ON c.list_id = l.id
+        WHERE l.board_id = :board_id AND c.assignee_id = :user_id
+        LIMIT 1
+    """)
+    
+    assigned_result = db.execute(assigned_cards_query, {"board_id": board_id, "user_id": local_user_id})
+    
+    return assigned_result.fetchone() is not None 
