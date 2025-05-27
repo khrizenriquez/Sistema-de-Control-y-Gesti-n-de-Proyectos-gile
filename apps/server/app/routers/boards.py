@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.sql import text
 import uuid
 import datetime
+import json
 
 router = APIRouter(
     prefix="/boards",
@@ -835,9 +836,12 @@ async def create_notification(
     """Crear una notificación para un usuario"""
     notification_id = str(uuid.uuid4())
     
+    # Convertir data a JSON string, o None si data es None
+    data_json = json.dumps(data) if data is not None else None
+    
     create_notification_query = text("""
-        INSERT INTO notifications (id, user_id, content, type, entity_id, data, created_at, read)
-        VALUES (:id, :user_id, :content, :type, :entity_id, :data, NOW(), false)
+        INSERT INTO notifications (id, user_id, content, type, entity_id, data, created_at, updated_at, is_active, read)
+        VALUES (:id, :user_id, :content, :type, :entity_id, :data, NOW(), NOW(), true, false)
     """)
     
     db.execute(create_notification_query, {
@@ -846,7 +850,7 @@ async def create_notification(
         "content": content,
         "type": notification_type,
         "entity_id": entity_id,
-        "data": data
+        "data": data_json
     })
     
     db.commit()
@@ -1517,13 +1521,22 @@ async def get_user_notifications(
     notification_ids = []
     for row in result:
         notification_ids.append(row[0])
+        
+        # Deserializar el campo data si existe
+        data_field = None
+        if row[5] is not None:  # row[5] es el campo data
+            try:
+                data_field = json.loads(row[5])
+            except (json.JSONDecodeError, TypeError):
+                data_field = None
+        
         notifications.append({
             "id": row[0],
             "user_id": row[1],
             "content": row[2],
             "type": row[3],
             "entity_id": row[4],
-            "data": row[5],
+            "data": data_field,
             "created_at": row[6].isoformat(),
             "read": row[7]
         })
