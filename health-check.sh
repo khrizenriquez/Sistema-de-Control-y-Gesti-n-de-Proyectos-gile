@@ -98,7 +98,7 @@ health_check() {
   # Verificar contenedores
   echo -e "${BLUE}1. Verificando contenedores...${NC}"
   
-  for container in "db" "server" "client" "pgadmin"; do
+  for container in "db" "server" "client"; do
     if check_container "$container"; then
       echo -e "  ✅ $container: ${GREEN}Ejecutándose${NC}"
       
@@ -171,13 +171,6 @@ health_check() {
       echo -e "    🔄 Reiniciando cliente..."
       restart_container "client"
     fi
-  fi
-  
-  if check_http_service "pgAdmin" "http://localhost:5050" 10; then
-    echo -e "  ✅ pgAdmin: ${GREEN}Respondiendo${NC}"
-  else
-    echo -e "  ⚠️  pgAdmin: ${YELLOW}No responde (no crítico)${NC}"
-    log_message "WARN" "pgAdmin no responde en http://localhost:5050"
   fi
   
   echo ""

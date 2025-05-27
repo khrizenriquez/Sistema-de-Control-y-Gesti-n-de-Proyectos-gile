@@ -107,22 +107,22 @@ if [ "$BUILD" = true ]; then
   cd apps/client && podman build -t client-app -f Dockerfile . && cd ../../
 fi
 
-# Iniciar contenedor de base de datos con límites de recursos
+# Iniciar contenedor de base de datos con límites de recursos optimizados para 1GB RAM
 print_step "Iniciando base de datos PostgreSQL con configuración de producción..."
 podman run -d \
   --name db \
   --restart=unless-stopped \
   --network=agile-network \
-  --memory=512m \
-  --memory-swap=1g \
-  --cpus=1.0 \
+  --memory=256m \
+  --memory-swap=512m \
+  --cpus=0.5 \
   -e POSTGRES_USER=agileuser \
   -e POSTGRES_PASSWORD=${DB_PASSWORD} \
   -e POSTGRES_DB=agiledb \
   -e POSTGRES_SHARED_PRELOAD_LIBRARIES=pg_stat_statements \
-  -e POSTGRES_MAX_CONNECTIONS=100 \
-  -e POSTGRES_SHARED_BUFFERS=128MB \
-  -e POSTGRES_EFFECTIVE_CACHE_SIZE=256MB \
+  -e POSTGRES_MAX_CONNECTIONS=50 \
+  -e POSTGRES_SHARED_BUFFERS=64MB \
+  -e POSTGRES_EFFECTIVE_CACHE_SIZE=128MB \
   -p 5432:5432 \
   -v postgres-data:/var/lib/postgresql/data \
   docker.io/library/postgres:15-alpine
@@ -149,14 +149,14 @@ fi
 print_message "Configurando roles de usuario..."
 podman exec -i db psql -U agileuser -d agiledb < apps/server/scripts/update_roles.sql >/dev/null 2>&1 || true
 
-# Iniciar servidor con límites de recursos
+# Iniciar servidor con límites de recursos optimizados para 1GB RAM
 print_step "Iniciando servidor backend con configuración de producción..."
 podman run -d \
   --name server \
   --restart=unless-stopped \
-  --memory=1g \
-  --memory-swap=2g \
-  --cpus=1.5 \
+  --memory=384m \
+  --memory-swap=512m \
+  --cpus=1.0 \
   -p 8000:8000 \
   --network=agile-network \
   -e DATABASE_URL=postgresql+asyncpg://agileuser:${DB_PASSWORD}@db:5432/agiledb \
@@ -188,31 +188,17 @@ print_message "Ejecutando scripts de inicialización..."
 podman exec server python /app/scripts/sync_supabase_roles.py || true
 podman exec server python /app/scripts/create_demo_project.py || true
 
-# Iniciar cliente con configuración de producción
+# Iniciar cliente con configuración de producción optimizada para 1GB RAM
 print_step "Iniciando cliente frontend con configuración de producción..."
 podman run -d \
   --name client \
   --restart=unless-stopped \
-  --memory=512m \
-  --memory-swap=1g \
-  --cpus=1.0 \
+  --memory=256m \
+  --memory-swap=384m \
+  --cpus=0.5 \
   -p 3000:5173 \
   --network=agile-network \
   localhost/client-app:latest
-
-# Iniciar pgAdmin con recursos limitados
-print_step "Iniciando pgAdmin..."
-podman run -d \
-  --name pgadmin \
-  --restart=unless-stopped \
-  --memory=256m \
-  --memory-swap=512m \
-  --cpus=0.5 \
-  --network=agile-network \
-  -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
-  -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
-  -p 5050:80 \
-  docker.io/dpage/pgadmin4
 
 # Crear script de monitoreo si está habilitado
 if [ "$MONITORING" = true ]; then
@@ -237,7 +223,6 @@ echo "$(date): Verificando estado de contenedores..."
 check_container "db"
 check_container "server"
 check_container "client"
-check_container "pgadmin"
 EOF
 
   chmod +x monitor_containers.sh
@@ -256,11 +241,9 @@ echo ""
 print_message "🚀 Entorno de PRODUCCIÓN listo! Los servicios están disponibles en:"
 echo "  📊 Backend API: http://localhost:8000 (también en puerto 8000 de tu IP pública)"
 echo "  🖥️ Frontend: http://localhost:3000 (también en puerto 3000 de tu IP pública)"
-echo "  🛢️ pgAdmin: http://localhost:5050 (también en puerto 5050 de tu IP pública)"
 echo ""
 print_message "🔐 Credenciales de acceso:"
 echo "  🗃️ Base de datos: agileuser / [password configurado]"
-echo "  🛢️ pgAdmin: ${PGADMIN_EMAIL} / ${PGADMIN_PASSWORD}"
 echo ""
 print_message "📊 Comandos útiles para producción:"
 echo "  • Ver logs: podman logs -f <container-name>"
@@ -278,7 +261,7 @@ echo ""
 services_running=true
 missing_services=""
 
-for service in "server" "client" "db" "pgadmin"; do
+for service in "server" "client" "db"; do
   if ! podman ps | grep -q "$service"; then
     services_running=false
     missing_services="$service $missing_services"
