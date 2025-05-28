@@ -144,26 +144,8 @@ export const BoardCalendarPage: FunctionComponent = () => {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Calendario del Tablero</h1>
-        <div className="flex space-x-4">
-          <div className="relative">
-            <button className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 16a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" />
-              </svg>
-              Filtrar
-            </button>
-          </div>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Nueva Tarea
-          </button>
-        </div>
       </div>
 
       <div className="bg-white shadow-md rounded-lg p-6">
