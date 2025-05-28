@@ -37,7 +37,7 @@ echo -e "${GREEN}MAILJET_API_KEY=\"tu_api_key_de_mailjet\"${NC}"
 echo -e "${GREEN}MAILJET_SECRET_KEY=\"tu_secret_key_de_mailjet\"${NC}"
 echo -e "${GREEN}ENABLE_EMAIL_NOTIFICATIONS=\"true\"${NC}"
 echo -e "${GREEN}FROM_EMAIL=\"noreply@tu-dominio.com\"${NC}"
-echo -e "${GREEN}FROM_NAME=\"Tu Sistema de Gestión\"${NC}"
+echo -e "${GREEN}FROM_NAME=\"Sistema de Gestión\"${NC}"
 echo
 
 echo -e "${BLUE}📋 Pasos para obtener las credenciales:${NC}"
@@ -48,7 +48,7 @@ echo "  4. Copia el API Key y Secret Key"
 echo "  5. Configura un dominio de envío en Account Settings > Sender domains"
 echo
 
-echo -e "${BLUE}🚀 Después de configurar, reinicia tu aplicación:${NC}"
+echo -e "${BLUE}🚀 Después de configurar, reinicia la aplicación:${NC}"
 echo -e "${GREEN}./start-environment.sh --build --dev${NC}"
 echo
 

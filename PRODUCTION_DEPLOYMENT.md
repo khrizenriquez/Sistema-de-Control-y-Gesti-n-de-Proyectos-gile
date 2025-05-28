@@ -1,6 +1,6 @@
 # 🚀 Guía de Despliegue en Producción - Digital Ocean
 
-Esta guía te ayudará a desplegar tu sistema de gestión de proyectos ágiles en Digital Ocean con máxima estabilidad y disponibilidad.
+Esta guía proporciona los pasos para desplegar el sistema de gestión de proyectos ágiles en Digital Ocean con máxima estabilidad y disponibilidad.
 
 ## 🔧 Problema Identificado y Solución
 
@@ -184,9 +184,9 @@ nano start-production.sh
 
 ```bash
 # Configurar en el servidor
-export DB_PASSWORD="tu_password_seguro"
-export SUPABASE_URL="tu_supabase_url"
-export SUPABASE_SERVICE_KEY="tu_supabase_key"
+export DB_PASSWORD="password_seguro"
+export SUPABASE_URL="supabase_url"
+export SUPABASE_SERVICE_KEY="supabase_key"
 ```
 
 ### Firewall (si es necesario)
@@ -226,7 +226,7 @@ ufw allow 5050/tcp  # pgAdmin (opcional)
 
 ## 🎯 URLs de Acceso
 
-Una vez desplegado, tu aplicación estará disponible en:
+Una vez desplegado, la aplicación estará disponible en:
 
 - **Frontend**: http://161.35.97.194:3000
 - **Backend API**: http://161.35.97.194:8000
@@ -271,6 +271,6 @@ podman exec -i db psql -U agileuser agiledb < backup_20241201.sql
 
 ---
 
-**¡Tu aplicación ahora debería mantenerse estable 24/7 en Digital Ocean!** 🎉
+**¡La aplicación ahora debería mantenerse estable 24/7 en Digital Ocean!** 🎉
 
-Si tienes problemas, revisa los logs con `podman logs <container-name>` y ejecuta `./health-check.sh` para diagnóstico automático. 
+Si hay problemas, revisar los logs con `podman logs <container-name>` y ejecutar `./health-check.sh` para diagnóstico automático. 
