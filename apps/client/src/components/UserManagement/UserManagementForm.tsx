@@ -131,13 +131,21 @@ const UserManagementForm = () => {
       }
       
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('authToken');
       
-      // Crear el usuario a través de la API de registro (que no requiere autenticación)
+      // Crear el usuario con autenticación para permitir asignación automática
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Si hay token (admin autenticado), incluirlo para permitir asignación automática
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${apiUrl}/api/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify(formData)
       });
       
@@ -149,8 +157,13 @@ const UserManagementForm = () => {
       // Obtener los datos del usuario creado
       const newUser = await response.json();
       
-      // Si se necesita asignar proyectos, se debe usar el token
-      const token = localStorage.getItem('authToken');
+      // Mostrar mensaje de éxito con información sobre asignación automática
+      let successMessage = 'Usuario creado correctamente';
+      if (formData.role === 'product_owner' || formData.role === 'developer') {
+        successMessage += '. Se ha asignado automáticamente a todos los proyectos existentes.';
+      }
+      
+      // Asignaciones manuales adicionales (si las hay)
       if (userAssignments.length > 0 && token) {
         for (const assignment of userAssignments) {
           await fetch(`${apiUrl}/api/projects/${assignment.projectId}/members`, {
@@ -160,11 +173,12 @@ const UserManagementForm = () => {
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-              user_id: newUser.id,
+              member_email: newUser.email,
               role: assignment.role
             })
           });
         }
+        successMessage += ' Asignaciones adicionales completadas.';
       }
       
       // Resetear el formulario
@@ -179,7 +193,7 @@ const UserManagementForm = () => {
       });
       
       setUserAssignments([]);
-      setSuccess('Usuario creado correctamente');
+      setSuccess(successMessage);
       
       // Recargar la lista de usuarios
       loadUsers();
