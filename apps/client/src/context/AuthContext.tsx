@@ -1,8 +1,9 @@
-import { createContext } from 'preact';
+import { createContext, ComponentChildren } from 'preact';
 import { useState, useEffect, useContext } from 'preact/hooks';
 import { User } from '../domain/entities/User';
 import { supabase, getCurrentUser, setupSessionListener } from '../infrastructure/services/supabase';
 import { AuthApiAdapter } from '../infrastructure/adapters/AuthApiAdapter';
+import { createClient } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -26,41 +27,27 @@ export const AuthProvider = ({ children }: { children: any }) => {
   const authApi = new AuthApiAdapter();
 
   useEffect(() => {
-    // Check active session when the app loads
-    const getInitialSession = async () => {
-      try {
-        setLoading(true);
-        const currentUser = await getCurrentUser();
-        
-        if (currentUser) {
-          // Log para diagnóstico
-          console.log('🔷 Datos de usuario cargados:', {
-            id: currentUser.id,
-            email: currentUser.email,
-            metadata: currentUser.user_metadata
-          });
-          
-          const userData = {
-            id: currentUser.id,
-            email: currentUser.email || '',
-            name: currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || '',
-            role: currentUser.user_metadata?.role || 'member'
-          };
-          
-          console.log('🔶 Usuario procesado:', userData);
-          setUser(userData);
-        } else {
-          setUser(null);
+    const checkAuth = async () => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        try {
+          const response = await authApi.validateToken();
+          if (response.valid) {
+            const userInfo = await authApi.getCurrentUser();
+            setUser(userInfo);
+            setLoading(false);
+          } else {
+            localStorage.removeItem('authToken');
+          }
+        } catch (error) {
+          console.error('Error validating token:', error);
+          localStorage.removeItem('authToken');
         }
-      } catch (error: any) {
-        console.error('❌ Error obteniendo sesión inicial:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     };
 
-    getInitialSession();
+    checkAuth();
 
     // Configurar listener para cambios en la autenticación
     const cleanupListener = setupSessionListener(

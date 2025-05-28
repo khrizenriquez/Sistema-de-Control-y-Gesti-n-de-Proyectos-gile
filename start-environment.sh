@@ -88,14 +88,18 @@ if [ "$BUILD" = true ]; then
   cd apps/server && podman build -t server-app . && cd ../../
   
   print_message "Construyendo imagen del cliente..."
-  cd apps/client && podman build -t client-dev -f Dockerfile.dev . && cd ../../
+  cd apps/client && podman build -t client-dev . && cd ../../
 fi
 
 # Iniciar contenedor de base de datos
 print_message "Iniciando base de datos PostgreSQL..."
 podman run -d \
   --name db \
+  --replace \
   --restart=unless-stopped \
+  --memory=512m \
+  --memory-swap=768m \
+  --cpus=1.0 \
   --network=agile-network \
   -e POSTGRES_USER=agileuser \
   -e POSTGRES_PASSWORD=${DB_PASSWORD} \
@@ -117,7 +121,11 @@ if [ "$NO_PGADMIN" = false ]; then
   print_message "Iniciando pgAdmin..."
   podman run -d \
     --name pgadmin \
+    --replace \
     --restart=unless-stopped \
+    --memory=256m \
+    --memory-swap=384m \
+    --cpus=0.5 \
     --network=agile-network \
     -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
     -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
@@ -131,7 +139,11 @@ fi
 print_message "Iniciando servidor backend..."
 podman run -d \
   --name server \
+  --replace \
   --restart=unless-stopped \
+  --memory=1g \
+  --memory-swap=1.5g \
+  --cpus=1.5 \
   -p 8000:8000 \
   --network=agile-network \
   -e DATABASE_URL=postgresql+asyncpg://agileuser:${DB_PASSWORD}@db:5432/agiledb \
@@ -159,7 +171,11 @@ if [ "$DEV" = true ]; then
   print_message "Iniciando cliente en modo desarrollo con volúmenes montados..."
   podman run -d \
     --name client \
+    --replace \
     --restart=unless-stopped \
+    --memory=512m \
+    --memory-swap=768m \
+    --cpus=1.0 \
     -p 3000:5173 \
     --network=agile-network \
     -v "$(pwd)/apps/client/src:/app/src" \
@@ -183,7 +199,11 @@ else
   # Modo normal sin montar volúmenes
   podman run -d \
     --name client \
+    --replace \
     --restart=unless-stopped \
+    --memory=512m \
+    --memory-swap=768m \
+    --cpus=1.0 \
     -p 3000:5173 \
     --network=agile-network \
     localhost/client-dev:latest
