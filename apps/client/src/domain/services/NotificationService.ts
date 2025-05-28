@@ -29,7 +29,7 @@ export interface NotificationUI {
 export class NotificationService {
   async getNotifications(markAsRead: boolean = false): Promise<NotificationUI[]> {
     try {
-      const response = await api.get(`/api/boards/notifications?mark_as_read=${markAsRead}`);
+      const response = await api.get(`/api/notifications?mark_as_read=${markAsRead}`);
       return this.transformNotifications(response.data);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -39,7 +39,7 @@ export class NotificationService {
 
   async markAsRead(notificationId: string): Promise<void> {
     try {
-      await api.put(`/api/boards/notifications/${notificationId}/read`);
+      await api.put(`/api/notifications/${notificationId}/read`);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       throw error;
@@ -48,7 +48,7 @@ export class NotificationService {
 
   async deleteNotification(notificationId: string): Promise<void> {
     try {
-      await api.delete(`/api/boards/notifications/${notificationId}`);
+      await api.delete(`/api/notifications/${notificationId}`);
     } catch (error) {
       console.error('Error deleting notification:', error);
       throw error;
@@ -57,7 +57,7 @@ export class NotificationService {
 
   async markAllAsRead(): Promise<void> {
     try {
-      await api.put('/api/boards/notifications/mark-all-read');
+      await api.put('/api/notifications/mark-all-read');
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       throw error;
@@ -87,6 +87,10 @@ export class NotificationService {
           notificationUI.sender = {
             name: notification.data.commenter_name,
           };
+        } else if (notification.type === 'card_updated' && notification.data.modifier_name) {
+          notificationUI.sender = {
+            name: notification.data.modifier_name,
+          };
         }
       }
 
@@ -100,6 +104,8 @@ export class NotificationService {
         return 'Asignación de tarea';
       case 'card_comment':
         return 'Mención en comentario';
+      case 'card_updated':
+        return 'Tarjeta modificada';
       case 'invite':
         return 'Invitación a un equipo';
       case 'system':
@@ -115,6 +121,8 @@ export class NotificationService {
         return 'task';
       case 'card_comment':
         return 'mention';
+      case 'card_updated':
+        return 'task';
       case 'invite':
         return 'invite';
       default:
@@ -128,6 +136,7 @@ export class NotificationService {
       switch (notification.type) {
         case 'card_assigned':
         case 'card_comment':
+        case 'card_updated':
           if (notification.data.board_id && notification.data.card_id) {
             return `/boards/${notification.data.board_id}?card=${notification.data.card_id}`;
           }

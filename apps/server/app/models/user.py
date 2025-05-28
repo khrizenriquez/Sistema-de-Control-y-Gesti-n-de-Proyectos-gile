@@ -19,6 +19,7 @@ class UserProfile(BaseModel, table=True):
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     role: str = Field(default="member")  # Por defecto, el rol es "member"
+    email_notifications: bool = Field(default=True)  # Habilitar notificaciones por email
     
     # Relaciones
     owned_projects = Relationship(

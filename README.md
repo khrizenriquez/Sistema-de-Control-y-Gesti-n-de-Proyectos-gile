@@ -128,7 +128,7 @@ Este modo:
 
 ## Arquitectura de la aplicación
 
-![Arquitectura de la aplicación](https://github.com/user-attachments/assets/5a69b70e-85f5-4fb9-8a70-3aad89727d54)
+![Arquitectura de la aplicación](https://github.com/user-attachments/assets/5916abdb-f9a3-48cf-b8b9-aba97784a27f)
 
 ## Persistencia de Datos
 

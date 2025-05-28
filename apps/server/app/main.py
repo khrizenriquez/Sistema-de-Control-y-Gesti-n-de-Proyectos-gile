@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.database.db import create_db_and_tables
+from app.services.email_service import email_service
 
 # Configuración de logging
 logging.basicConfig(
@@ -26,6 +27,24 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Configuración de Apitally (solo si está habilitado y configurado)
+if settings.ENABLE_APITALLY and settings.APITALLY_CLIENT_ID:
+    try:
+        from apitally.fastapi import ApitallyMiddleware
+        
+        app.add_middleware(
+            ApitallyMiddleware,
+            client_id=settings.APITALLY_CLIENT_ID,
+            env=settings.APITALLY_ENV,
+        )
+        logger.info(f"✅ Apitally habilitado para ambiente: {settings.APITALLY_ENV}")
+    except ImportError:
+        logger.warning("⚠️ Apitally no está instalado. Instala con: pip install apitally[fastapi]")
+    except Exception as e:
+        logger.error(f"❌ Error configurando Apitally: {e}")
+else:
+    logger.info("ℹ️ Apitally deshabilitado o no configurado")
 
 # Configuración de CORS mejorada
 origins = [
@@ -49,13 +68,14 @@ app.add_middleware(
 )
 
 # Importar routers
-from app.routers import users, auth, boards, projects
+from app.routers import users, auth, boards, projects, notifications
 
 # Incluir routers en la aplicación
 app.include_router(users.router, prefix=settings.API_PREFIX)
 app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(boards.router, prefix=settings.API_PREFIX)
 app.include_router(projects.router, prefix=settings.API_PREFIX)
+app.include_router(notifications.router, prefix=settings.API_PREFIX)
 
 @app.on_event("startup")
 async def on_startup():
@@ -87,8 +107,18 @@ async def root():
         "message": "Bienvenido a la API de Gestión de Proyectos Ágiles",
         "docs": "/docs",
         "status": "online",
+        "apitally_enabled": settings.ENABLE_APITALLY and bool(settings.APITALLY_CLIENT_ID),
+        "email_notifications_enabled": settings.ENABLE_EMAIL_NOTIFICATIONS and bool(settings.MAILJET_API_KEY)
     }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "version": settings.PROJECT_VERSION} 
+    return {"status": "healthy", "version": settings.PROJECT_VERSION}
+
+@app.get("/metrics/email")
+async def email_metrics():
+    """Obtener métricas de envío de emails"""
+    return {
+        "email_service_enabled": email_service.enabled,
+        "metrics": email_service.get_metrics()
+    } 

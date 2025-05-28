@@ -7,8 +7,8 @@ const api = {
     // Asegurar que endpoint comienza con /
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // Asegurar que endpoint termina con / para evitar redirecciones
-    const endpointWithTrailingSlash = formattedEndpoint.endsWith('/') 
+    // Solo añadir barra final si NO hay query parameters
+    const endpointWithTrailingSlash = formattedEndpoint.includes('?') || formattedEndpoint.endsWith('/') 
       ? formattedEndpoint 
       : `${formattedEndpoint}/`;
     
@@ -40,8 +40,8 @@ const api = {
     // Asegurar que endpoint comienza con /
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // Asegurar que endpoint termina con / para evitar redirecciones
-    const endpointWithTrailingSlash = formattedEndpoint.endsWith('/') 
+    // Solo añadir barra final si NO hay query parameters
+    const endpointWithTrailingSlash = formattedEndpoint.includes('?') || formattedEndpoint.endsWith('/') 
       ? formattedEndpoint 
       : `${formattedEndpoint}/`;
     
@@ -65,8 +65,8 @@ const api = {
     // Asegurar que endpoint comienza con /
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // Asegurar que endpoint termina con / para evitar redirecciones
-    const endpointWithTrailingSlash = formattedEndpoint.endsWith('/') 
+    // Solo añadir barra final si NO hay query parameters
+    const endpointWithTrailingSlash = formattedEndpoint.includes('?') || formattedEndpoint.endsWith('/') 
       ? formattedEndpoint 
       : `${formattedEndpoint}/`;
     
@@ -90,8 +90,8 @@ const api = {
     // Asegurar que endpoint comienza con /
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // Asegurar que endpoint termina con / para evitar redirecciones
-    const endpointWithTrailingSlash = formattedEndpoint.endsWith('/') 
+    // Solo añadir barra final si NO hay query parameters
+    const endpointWithTrailingSlash = formattedEndpoint.includes('?') || formattedEndpoint.endsWith('/') 
       ? formattedEndpoint 
       : `${formattedEndpoint}/`;
     
