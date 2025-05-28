@@ -27,6 +27,24 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# Configuración de Apitally (solo si está habilitado y configurado)
+if settings.ENABLE_APITALLY and settings.APITALLY_CLIENT_ID:
+    try:
+        from apitally.fastapi import ApitallyMiddleware
+        
+        app.add_middleware(
+            ApitallyMiddleware,
+            client_id=settings.APITALLY_CLIENT_ID,
+            env=settings.APITALLY_ENV,
+        )
+        logger.info(f"✅ Apitally habilitado para ambiente: {settings.APITALLY_ENV}")
+    except ImportError:
+        logger.warning("⚠️ Apitally no está instalado. Instala con: pip install apitally[fastapi]")
+    except Exception as e:
+        logger.error(f"❌ Error configurando Apitally: {e}")
+else:
+    logger.info("ℹ️ Apitally deshabilitado o no configurado")
+
 # Configuración de CORS mejorada
 origins = [
     "http://localhost:3000",     # Frontend React/Preact
@@ -88,6 +106,7 @@ async def root():
         "message": "Bienvenido a la API de Gestión de Proyectos Ágiles",
         "docs": "/docs",
         "status": "online",
+        "apitally_enabled": settings.ENABLE_APITALLY and bool(settings.APITALLY_CLIENT_ID)
     }
 
 @app.get("/health")
