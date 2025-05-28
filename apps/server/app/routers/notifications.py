@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.sql import text
 import uuid
 import json
+from app.services.email_service import email_service
 
 router = APIRouter(
     prefix="/notifications",
@@ -32,12 +33,13 @@ async def create_notification(
     entity_id: str,
     data: Optional[dict] = None
 ) -> str:
-    """Crear una notificación para un usuario"""
+    """Crear una notificación para un usuario y opcionalmente enviar por email"""
     notification_id = str(uuid.uuid4())
     
     # Convertir data a JSON string, o None si data es None
     data_json = json.dumps(data) if data is not None else None
     
+    # Crear notificación en la base de datos
     create_notification_query = text("""
         INSERT INTO notifications (id, user_id, content, type, entity_id, data, created_at, updated_at, is_active, read)
         VALUES (:id, :user_id, :content, :type, :entity_id, :data, NOW(), NOW(), true, false)
@@ -53,6 +55,47 @@ async def create_notification(
     })
     
     db.commit()
+    
+    # Enviar email si las notificaciones por email están habilitadas para este usuario
+    try:
+        # Obtener datos del usuario
+        user_query = text("""
+            SELECT email, first_name, last_name, email_notifications
+            FROM user_profiles 
+            WHERE id = :user_id
+        """)
+        user_result = db.execute(user_query, {"user_id": user_id})
+        user_record = user_result.fetchone()
+        
+        if user_record and user_record[3]:  # email_notifications = True
+            user_email = user_record[0]
+            user_name = f"{user_record[1]} {user_record[2]}".strip() if user_record[1] else user_email
+            
+            # Generar asunto del email
+            subject_map = {
+                "card_assigned": "📋 Te han asignado una nueva tarjeta",
+                "card_comment": "💬 Nuevo comentario en tu tarjeta",
+                "card_updated": "✏️ Tu tarjeta ha sido actualizada",
+                "project_invitation": "👥 Invitación a nuevo proyecto",
+            }
+            subject = subject_map.get(notification_type, "🔔 Nueva notificación")
+            
+            # Enviar email (no await para no bloquear la respuesta)
+            await email_service.send_notification_email(
+                to_email=user_email,
+                to_name=user_name,
+                notification_type=notification_type,
+                subject=subject,
+                content=content,
+                entity_data=data
+            )
+            
+    except Exception as e:
+        # Log del error pero no fallar la notificación
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error enviando email de notificación: {e}")
+    
     return notification_id
 
 @router.get("/", response_model=TypeList[NotificationResponse])

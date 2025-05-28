@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.database.db import create_db_and_tables
+from app.services.email_service import email_service
 
 # Configuración de logging
 logging.basicConfig(
@@ -106,9 +107,18 @@ async def root():
         "message": "Bienvenido a la API de Gestión de Proyectos Ágiles",
         "docs": "/docs",
         "status": "online",
-        "apitally_enabled": settings.ENABLE_APITALLY and bool(settings.APITALLY_CLIENT_ID)
+        "apitally_enabled": settings.ENABLE_APITALLY and bool(settings.APITALLY_CLIENT_ID),
+        "email_notifications_enabled": settings.ENABLE_EMAIL_NOTIFICATIONS and bool(settings.MAILJET_API_KEY)
     }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "version": settings.PROJECT_VERSION} 
+    return {"status": "healthy", "version": settings.PROJECT_VERSION}
+
+@app.get("/metrics/email")
+async def email_metrics():
+    """Obtener métricas de envío de emails"""
+    return {
+        "email_service_enabled": email_service.enabled,
+        "metrics": email_service.get_metrics()
+    } 

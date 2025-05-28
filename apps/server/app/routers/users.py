@@ -33,6 +33,9 @@ class UserResponse(BaseModel):
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
 
+class UserPreferences(BaseModel):
+    email_notifications: bool
+
 @router.get("/", response_model=List[UserResponse])
 async def list_users(
     db: Session = Depends(get_db),
@@ -251,4 +254,66 @@ async def create_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al crear usuario: {str(e)}"
-        ) 
+        )
+
+@router.get("/me/preferences", response_model=UserPreferences)
+async def get_user_preferences(
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener las preferencias del usuario actual"""
+    # Obtener el usuario local
+    user_query = text("""
+        SELECT email_notifications FROM user_profiles 
+        WHERE auth_id = :auth_id OR email = :email
+        LIMIT 1
+    """)
+    user_result = db.execute(user_query, {"auth_id": current_user.id, "email": current_user.email})
+    user_record = user_result.fetchone()
+    
+    if not user_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    return UserPreferences(email_notifications=user_record[0])
+
+@router.put("/me/preferences", response_model=UserPreferences)
+async def update_user_preferences(
+    preferences: UserPreferences,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Actualizar las preferencias del usuario actual"""
+    # Verificar que el usuario existe
+    user_query = text("""
+        SELECT id FROM user_profiles 
+        WHERE auth_id = :auth_id OR email = :email
+        LIMIT 1
+    """)
+    user_result = db.execute(user_query, {"auth_id": current_user.id, "email": current_user.email})
+    user_record = user_result.fetchone()
+    
+    if not user_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    # Actualizar preferencias
+    update_query = text("""
+        UPDATE user_profiles 
+        SET email_notifications = :email_notifications, updated_at = NOW()
+        WHERE auth_id = :auth_id OR email = :email
+    """)
+    
+    db.execute(update_query, {
+        "email_notifications": preferences.email_notifications,
+        "auth_id": current_user.id,
+        "email": current_user.email
+    })
+    
+    db.commit()
+    
+    return preferences 

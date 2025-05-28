@@ -8,6 +8,7 @@ from app.core.supabase import create_user, sign_up_with_email_password, supabase
 from pydantic import BaseModel
 import uuid
 import httpx
+from typing import Optional
 
 router = APIRouter(
     prefix="/auth",
@@ -38,6 +39,14 @@ class RegisterResponse(BaseModel):
     first_name: str
     last_name: str
     role: str
+
+# Función auxiliar para obtener usuario actual de forma opcional
+async def get_current_user_optional() -> Optional[AuthUser]:
+    """Obtiene el usuario actual si está autenticado, None en caso contrario"""
+    try:
+        return await get_current_user()
+    except:
+        return None
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
@@ -122,7 +131,8 @@ async def login(
 @router.post("/register", response_model=RegisterResponse)
 async def register_user(
     user_data: RegisterRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user_optional)
 ):
     """Registra un nuevo usuario en el sistema"""
     try:
@@ -217,6 +227,71 @@ async def register_user(
                 "role": user_data.role
             }
         )
+        
+        # **NUEVA LÓGICA: Asignación automática a proyectos**
+        # Si se está creando un Product Owner o Developer, asignarlo automáticamente a proyectos
+        if user_data.role in ["product_owner", "developer"] and current_user:
+            try:
+                # Obtener el ID del admin que está creando el usuario
+                admin_query = text("""
+                    SELECT id, role FROM user_profiles 
+                    WHERE auth_id = :auth_id OR email = :email
+                    LIMIT 1
+                """)
+                admin_result = db.execute(admin_query, {"auth_id": current_user.id, "email": current_user.email})
+                admin_record = admin_result.fetchone()
+                
+                if admin_record and admin_record[1] == "admin":
+                    admin_id = admin_record[0]
+                    
+                    # Obtener todos los proyectos creados por este admin
+                    projects_query = text("""
+                        SELECT id, name FROM projects 
+                        WHERE created_by = :admin_id AND is_active = true
+                    """)
+                    projects_result = db.execute(projects_query, {"admin_id": admin_id})
+                    projects = projects_result.fetchall()
+                    
+                    # Asignar el usuario a cada proyecto con su rol correspondiente
+                    for project in projects:
+                        project_id = project[0]
+                        project_name = project[1]
+                        
+                        # Verificar si ya es miembro del proyecto
+                        existing_member_query = text("""
+                            SELECT id FROM project_members
+                            WHERE project_id = :project_id AND user_id = :user_id
+                        """)
+                        existing_result = db.execute(existing_member_query, {
+                            "project_id": project_id,
+                            "user_id": user_id
+                        })
+                        
+                        if not existing_result.fetchone():
+                            # Asignar al proyecto
+                            member_id = str(uuid.uuid4())
+                            add_member_query = text("""
+                                INSERT INTO project_members (id, user_id, project_id, role, created_at, updated_at, is_active)
+                                VALUES (:id, :user_id, :project_id, :role, NOW(), NOW(), true)
+                            """)
+                            
+                            db.execute(add_member_query, {
+                                "id": member_id,
+                                "user_id": user_id,
+                                "project_id": project_id,
+                                "role": user_data.role
+                            })
+                            
+                            print(f"✅ Usuario {user_data.email} ({user_data.role}) asignado automáticamente al proyecto '{project_name}'")
+                    
+                    if projects:
+                        print(f"🎯 Total de proyectos asignados automáticamente: {len(projects)}")
+                    else:
+                        print(f"ℹ️ No hay proyectos disponibles para asignar al usuario {user_data.email}")
+                        
+            except Exception as e:
+                print(f"⚠️ Error al asignar proyectos automáticamente: {str(e)}")
+                # No fallar la creación del usuario por este error
         
         db.commit()
         
