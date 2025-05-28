@@ -23,6 +23,11 @@ class Settings(BaseModel):
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     
+    # Apitally (Observabilidad)
+    APITALLY_CLIENT_ID: str = os.getenv("APITALLY_CLIENT_ID", "")
+    APITALLY_ENV: str = os.getenv("APITALLY_ENV", "dev")
+    ENABLE_APITALLY: bool = os.getenv("ENABLE_APITALLY", "false").lower() == "true"
+    
     # Migraciones y datos de prueba
     LOAD_TEST_DATA: str = os.getenv("LOAD_TEST_DATA", "false")
 
