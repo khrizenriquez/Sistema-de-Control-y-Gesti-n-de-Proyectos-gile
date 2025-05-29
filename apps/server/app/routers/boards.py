@@ -189,16 +189,33 @@ async def create_board(
             detail="Solo los Product Owners o Administradores pueden crear tableros"
         )
     
-    # Verificar que el proyecto existe
+    # Verificar que el proyecto existe y está activo para desarrollo
     project_query = text("""
-        SELECT id FROM projects
+        SELECT id, status FROM projects
         WHERE id = :project_id
     """)
     project_result = db.execute(project_query, {"project_id": board_data.project_id})
-    if not project_result.fetchone():
+    project_record = project_result.fetchone()
+    
+    if not project_record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Proyecto no encontrado"
+        )
+    
+    project_status = project_record[1]
+    
+    # Verificar que el proyecto no esté obsoleto, archivado, cancelado o completado
+    if project_status in ["obsolete", "archived", "cancelled", "completed"]:
+        status_messages = {
+            "obsolete": "El proyecto está marcado como obsoleto. No se pueden crear nuevos tableros.",
+            "archived": "El proyecto está archivado. No se pueden crear nuevos tableros.",
+            "cancelled": "El proyecto está cancelado. No se pueden crear nuevos tableros.",
+            "completed": "El proyecto está completado. No se pueden crear nuevos tableros."
+        }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=status_messages[project_status]
         )
     
     # Crear el tablero

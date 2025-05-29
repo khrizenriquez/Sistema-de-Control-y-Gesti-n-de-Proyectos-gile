@@ -21,6 +21,7 @@ class ProjectStatus(str, Enum):
     COMPLETED = "completed"     # Proyecto completado exitosamente
     CANCELLED = "cancelled"     # Proyecto cancelado antes de completar
     ARCHIVED = "archived"       # Proyecto archivado
+    OBSOLETE = "obsolete"       # Proyecto marcado como obsoleto (no se pueden crear nuevos tableros)
 
 class ProjectPriority(str, Enum):
     """Prioridades del proyecto"""
@@ -98,20 +99,24 @@ class Project(BaseModel, table=True):
         """Verificar si el proyecto está atrasado"""
         if not self.planned_end_date:
             return False
-        return datetime.utcnow() > self.planned_end_date and self.status not in [ProjectStatus.COMPLETED, ProjectStatus.CANCELLED, ProjectStatus.ARCHIVED]
+        return datetime.utcnow() > self.planned_end_date and self.status not in [ProjectStatus.COMPLETED, ProjectStatus.CANCELLED, ProjectStatus.ARCHIVED, ProjectStatus.OBSOLETE]
     
     def days_remaining(self) -> Optional[int]:
         """Calcular días restantes hasta la fecha planificada de finalización"""
         if not self.planned_end_date:
             return None
-        if self.status in [ProjectStatus.COMPLETED, ProjectStatus.CANCELLED, ProjectStatus.ARCHIVED]:
+        if self.status in [ProjectStatus.COMPLETED, ProjectStatus.CANCELLED, ProjectStatus.ARCHIVED, ProjectStatus.OBSOLETE]:
             return 0
         delta = self.planned_end_date - datetime.utcnow()
         return max(0, delta.days)
     
     def can_be_archived(self) -> bool:
         """Verificar si el proyecto puede ser archivado"""
-        return self.status in [ProjectStatus.COMPLETED, ProjectStatus.CANCELLED]
+        return self.status in [ProjectStatus.COMPLETED, ProjectStatus.CANCELLED, ProjectStatus.OBSOLETE]
+    
+    def is_active_for_development(self) -> bool:
+        """Verificar si el proyecto acepta desarrollo activo (nuevos tableros, etc.)"""
+        return self.status in [ProjectStatus.PLANNING, ProjectStatus.ACTIVE, ProjectStatus.ON_HOLD]
     
     def __repr__(self) -> str:
         return f"<Project id={self.id} name={self.name} status={self.status}>"

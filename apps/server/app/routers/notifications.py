@@ -77,6 +77,7 @@ async def create_notification(
                 "card_comment": "💬 Nuevo comentario en tu tarjeta",
                 "card_updated": "✏️ Tu tarjeta ha sido actualizada",
                 "project_invitation": "👥 Invitación a nuevo proyecto",
+                "project_obsolete": "⚠️ Proyecto marcado como obsoleto",
             }
             subject = subject_map.get(notification_type, "🔔 Nueva notificación")
             

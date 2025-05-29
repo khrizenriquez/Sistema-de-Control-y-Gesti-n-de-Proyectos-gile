@@ -2,7 +2,7 @@
 Endpoints para gestión del ciclo de vida de proyectos
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlmodel import Session
 from app.database.db import get_db
 from app.core.auth import get_current_user, AuthUser
@@ -257,6 +257,37 @@ async def archive_project(
             detail=str(e)
         )
 
+@router.post("/{project_id}/mark-obsolete")
+async def mark_project_obsolete(
+    project_id: str,
+    reason: str = Body(..., embed=True),
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Marcar un proyecto como obsoleto (solo admins)"""
+    
+    user_id = await _get_user_id(current_user, db)
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin"])
+    
+    service = ProjectLifecycleService(db)
+    
+    try:
+        success = await service.mark_obsolete(project_id, user_id, reason)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Proyecto no encontrado"
+            )
+        
+        return {"message": "Proyecto marcado como obsoleto exitosamente"}
+    
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
 # Endpoints para manejo de fechas
 
 @router.put("/{project_id}/dates")
@@ -500,6 +531,113 @@ async def update_milestone(
         db.commit()
     
     return {"message": "Hito actualizado exitosamente"}
+
+# Endpoint especial para administración de proyectos
+@router.get("/admin/projects")
+async def list_all_projects_admin(
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Listar todos los proyectos para administración (solo admins)"""
+    
+    user_id = await _get_user_id(current_user, db)
+    
+    # Verificar que el usuario es admin
+    user_query = text("""
+        SELECT role FROM user_profiles WHERE id = :user_id
+    """)
+    user_result = db.execute(user_query, {"user_id": user_id})
+    user_record = user_result.fetchone()
+    
+    if not user_record or user_record[0] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los administradores pueden acceder a esta función"
+        )
+    
+    # Obtener todos los proyectos del sistema con estadísticas
+    projects_query = text("""
+        SELECT 
+            p.id,
+            p.name,
+            p.description,
+            p.status,
+            p.priority,
+            p.client_name,
+            p.start_date,
+            p.planned_end_date,
+            p.actual_end_date,
+            p.archived_at,
+            p.completion_percentage,
+            p.created_at,
+            p.updated_at,
+            up_owner.first_name || ' ' || up_owner.last_name as owner_name,
+            up_owner.email as owner_email,
+            up_creator.first_name || ' ' || up_creator.last_name as creator_name,
+            (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id AND pm.is_active = true) as members_count,
+            (SELECT COUNT(*) FROM boards b WHERE b.project_id = p.id) as boards_count,
+            (SELECT COUNT(*) FROM user_stories us WHERE us.project_id = p.id) as stories_count
+        FROM projects p
+        LEFT JOIN user_profiles up_owner ON p.owner_id = up_owner.id
+        LEFT JOIN user_profiles up_creator ON p.created_by = up_creator.id
+        WHERE p.is_active = true
+        ORDER BY 
+            CASE p.status 
+                WHEN 'active' THEN 1
+                WHEN 'planning' THEN 2
+                WHEN 'on_hold' THEN 3
+                WHEN 'obsolete' THEN 4
+                WHEN 'completed' THEN 5
+                WHEN 'cancelled' THEN 6
+                WHEN 'archived' THEN 7
+                ELSE 8
+            END,
+            p.updated_at DESC
+    """)
+    
+    result = db.execute(projects_query)
+    projects = []
+    
+    for row in result:
+        project = {
+            "id": row[0],
+            "name": row[1],
+            "description": row[2],
+            "status": row[3],
+            "priority": row[4],
+            "client_name": row[5],
+            "start_date": row[6].isoformat() if row[6] else None,
+            "planned_end_date": row[7].isoformat() if row[7] else None,
+            "actual_end_date": row[8].isoformat() if row[8] else None,
+            "archived_at": row[9].isoformat() if row[9] else None,
+            "completion_percentage": row[10],
+            "created_at": row[11].isoformat(),
+            "updated_at": row[12].isoformat(),
+            "owner_name": row[13],
+            "owner_email": row[14],
+            "creator_name": row[15],
+            "members_count": row[16],
+            "boards_count": row[17],
+            "stories_count": row[18],
+            "is_overdue": False,
+            "days_remaining": None
+        }
+        
+        # Calcular si está atrasado y días restantes
+        if row[7] and row[3] in ["planning", "active", "on_hold"]:  # planned_end_date y estados activos
+            from datetime import datetime
+            planned_end = row[7]
+            now = datetime.utcnow()
+            
+            if now > planned_end:
+                project["is_overdue"] = True
+            
+            delta = planned_end - now
+            project["days_remaining"] = max(0, delta.days) if delta.days >= 0 else None
+        
+        projects.append(project)
+    
+    return {"projects": projects}
 
 # Funciones auxiliares
 

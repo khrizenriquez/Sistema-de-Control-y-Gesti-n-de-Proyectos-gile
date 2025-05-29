@@ -180,6 +180,32 @@ class ProjectLifecycleService:
         self.db.commit()
         return True
     
+    async def mark_obsolete(self, project_id: str, user_id: str, reason: str) -> bool:
+        """Marcar un proyecto como obsoleto (solo admins)"""
+        project = await self._get_project(project_id)
+        if not project:
+            return False
+        
+        if project.status in [ProjectStatus.ARCHIVED]:
+            raise ValueError("No se puede marcar como obsoleto un proyecto archivado")
+        
+        project.status = ProjectStatus.OBSOLETE
+        project.updated_at = datetime.utcnow()
+        
+        await self._log_activity(
+            project_id=project_id,
+            user_id=user_id,
+            activity_type="project_marked_obsolete",
+            description=f"Proyecto marcado como obsoleto el {datetime.utcnow().strftime('%Y-%m-%d')}",
+            extra_data=json.dumps({"reason": reason})
+        )
+        
+        # Enviar notificaciones a todos los miembros del proyecto
+        await self._notify_project_obsolete(project_id, reason)
+        
+        self.db.commit()
+        return True
+    
     async def update_project_dates(
         self, 
         project_id: str, 
@@ -428,3 +454,81 @@ class ProjectLifecycleService:
         
         self.db.add(activity)
         # No hacemos commit aquí, lo hace el método que llama 
+    
+    async def _calculate_completion_percentage(self, project_id: str) -> float:
+        """Calcular porcentaje de completación basado en user stories completadas"""
+        stories_query = text("""
+            SELECT 
+                COUNT(*) as total_stories,
+                COUNT(CASE WHEN status = 'done' THEN 1 END) as completed_stories
+            FROM user_stories 
+            WHERE project_id = :project_id
+        """)
+        
+        result = self.db.execute(stories_query, {"project_id": project_id})
+        row = result.fetchone()
+        
+        if row and row[0] > 0:  # Si hay historias
+            return (row[1] / row[0]) * 100.0
+        return 0.0
+    
+    async def _notify_project_obsolete(self, project_id: str, reason: str):
+        """Notificar a todos los miembros del proyecto que fue marcado como obsoleto"""
+        try:
+            # Obtener información del proyecto
+            project_query = text("""
+                SELECT name, client_name FROM projects WHERE id = :project_id
+            """)
+            project_result = self.db.execute(project_query, {"project_id": project_id})
+            project_data = project_result.fetchone()
+            
+            if not project_data:
+                return
+            
+            project_name = project_data[0]
+            client_name = project_data[1]
+            
+            # Obtener todos los miembros activos del proyecto
+            members_query = text("""
+                SELECT DISTINCT up.id, up.email, up.first_name, up.last_name, up.email_notifications
+                FROM user_profiles up
+                JOIN project_members pm ON up.id = pm.user_id
+                WHERE pm.project_id = :project_id 
+                AND pm.is_active = true
+                AND up.is_active = true
+            """)
+            
+            members_result = self.db.execute(members_query, {"project_id": project_id})
+            members = members_result.fetchall()
+            
+            # Crear notificación y enviar email a cada miembro
+            for member in members:
+                member_id, email, first_name, last_name, email_notifications = member
+                
+                # Crear contenido de notificación
+                member_name = f"{first_name} {last_name}".strip() if first_name else email
+                content = f"El proyecto '{project_name}' ha sido marcado como obsoleto."
+                if client_name:
+                    content += f" Cliente: {client_name}."
+                content += f" Razón: {reason}. Ya no se podrán crear nuevos tableros en este proyecto."
+                
+                # Crear notificación in-app
+                from app.routers.notifications import create_notification
+                await create_notification(
+                    db=self.db,
+                    user_id=member_id,
+                    content=content,
+                    notification_type="project_obsolete",
+                    entity_id=project_id,
+                    data={
+                        "project_name": project_name,
+                        "client_name": client_name,
+                        "reason": reason
+                    }
+                )
+                
+        except Exception as e:
+            # Log el error pero no fallar la operación principal
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error enviando notificaciones de proyecto obsoleto: {e}") 

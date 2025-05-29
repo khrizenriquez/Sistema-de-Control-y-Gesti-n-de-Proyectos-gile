@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useRoute } from 'wouter-preact';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../infrastructure/api';
 
 interface Project {
   id: string;
   name: string;
   description?: string;
-  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled' | 'archived';
+  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled' | 'archived' | 'obsolete';
   priority: 'low' | 'medium' | 'high' | 'critical';
   completion_percentage: number;
   start_date?: string;
@@ -48,9 +49,17 @@ interface Milestone {
   is_overdue: boolean;
 }
 
+interface ActionOption {
+  action: string;
+  label: string;
+  needsReason: boolean;
+  adminOnly?: boolean;
+}
+
 export const ProjectLifecyclePage = () => {
   const [match, params] = useRoute('/projects/:id/lifecycle');
   const { isDarkTheme } = useTheme();
+  const { user } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [health, setHealth] = useState<ProjectHealth | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -59,7 +68,7 @@ export const ProjectLifecyclePage = () => {
   const [showDateModal, setShowDateModal] = useState(false);
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   
-  const [statusAction, setStatusAction] = useState<'start' | 'complete' | 'pause' | 'resume' | 'cancel' | 'archive'>('start');
+  const [statusAction, setStatusAction] = useState<'start' | 'complete' | 'pause' | 'resume' | 'cancel' | 'archive' | 'mark-obsolete'>('start');
   const [reason, setReason] = useState('');
   const [startDate, setStartDate] = useState('');
   const [plannedEndDate, setPlannedEndDate] = useState('');
@@ -127,6 +136,10 @@ export const ProjectLifecyclePage = () => {
           break;
         case 'archive':
           endpoint = `/api/projects/${projectId}/archive`;
+          break;
+        case 'mark-obsolete':
+          endpoint = `/api/projects/${projectId}/mark-obsolete`;
+          data = { reason };
           break;
       }
       
@@ -197,12 +210,13 @@ export const ProjectLifecyclePage = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'planning': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'planning': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'on_hold': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-      case 'completed': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'on_hold': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'completed': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
       case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'archived': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+      case 'obsolete': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
@@ -226,23 +240,29 @@ export const ProjectLifecyclePage = () => {
     }
   };
 
-  const getAvailableActions = (status: string) => {
+  const getAvailableActions = (status: string): ActionOption[] => {
     switch (status) {
       case 'planning':
-        return [{ action: 'start', label: 'Iniciar Proyecto', needsReason: false }];
+        return [
+          { action: 'start', label: 'Iniciar Proyecto', needsReason: false },
+          { action: 'mark-obsolete', label: 'Marcar como Obsoleto', needsReason: true, adminOnly: true }
+        ];
       case 'active':
         return [
           { action: 'complete', label: 'Completar Proyecto', needsReason: false },
           { action: 'pause', label: 'Pausar Proyecto', needsReason: true },
-          { action: 'cancel', label: 'Cancelar Proyecto', needsReason: true }
+          { action: 'cancel', label: 'Cancelar Proyecto', needsReason: true },
+          { action: 'mark-obsolete', label: 'Marcar como Obsoleto', needsReason: true, adminOnly: true }
         ];
       case 'on_hold':
         return [
           { action: 'resume', label: 'Reanudar Proyecto', needsReason: false },
-          { action: 'cancel', label: 'Cancelar Proyecto', needsReason: true }
+          { action: 'cancel', label: 'Cancelar Proyecto', needsReason: true },
+          { action: 'mark-obsolete', label: 'Marcar como Obsoleto', needsReason: true, adminOnly: true }
         ];
       case 'completed':
       case 'cancelled':
+      case 'obsolete':
         return [{ action: 'archive', label: 'Archivar Proyecto', needsReason: false }];
       default:
         return [];
@@ -483,24 +503,22 @@ export const ProjectLifecyclePage = () => {
               </h2>
               
               <div className="space-y-3">
-                {getAvailableActions(project.status).map((action) => (
-                  <button
-                    key={action.action}
-                    onClick={() => {
-                      setStatusAction(action.action as any);
-                      setShowStatusModal(true);
-                    }}
-                    className={`w-full px-4 py-2 text-left rounded-lg transition-colors ${
-                      action.action === 'cancel' ? 
-                        'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400' :
-                      action.action === 'complete' ?
-                        'bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:text-green-400' :
-                        'bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-400'
-                    }`}
-                  >
-                    {action.label}
-                  </button>
-                ))}
+                <div className="flex flex-wrap gap-2">
+                  {getAvailableActions(project.status)
+                    .filter(action => !action.adminOnly || user?.role === 'admin')
+                    .map((action) => (
+                    <button
+                      key={action.action}
+                      onClick={() => {
+                        setStatusAction(action.action as any);
+                        setShowStatusModal(true);
+                      }}
+                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
                 
                 <button
                   onClick={() => setShowDateModal(true)}
@@ -586,19 +604,35 @@ export const ProjectLifecyclePage = () => {
       {showStatusModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-md mx-4">
-            <h3 className={`text-lg font-semibold mb-4 ${isDarkTheme ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               {statusAction === 'start' && 'Iniciar Proyecto'}
               {statusAction === 'complete' && 'Completar Proyecto'}
               {statusAction === 'pause' && 'Pausar Proyecto'}
               {statusAction === 'resume' && 'Reanudar Proyecto'}
               {statusAction === 'cancel' && 'Cancelar Proyecto'}
               {statusAction === 'archive' && 'Archivar Proyecto'}
+              {statusAction === 'mark-obsolete' && 'Marcar Proyecto como Obsoleto'}
             </h3>
             
-            {(statusAction === 'pause' || statusAction === 'cancel' || statusAction === 'complete') && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                {statusAction === 'start' && 'El proyecto pasará al estado "Activo" y se registrará la fecha de inicio.'}
+                {statusAction === 'complete' && 'El proyecto se marcará como completado y se registrará la fecha de finalización.'}
+                {statusAction === 'pause' && 'El proyecto se pausará temporalmente. Proporciona una razón para el seguimiento.'}
+                {statusAction === 'resume' && 'El proyecto se reanudará desde el estado pausado.'}
+                {statusAction === 'cancel' && 'El proyecto se cancelará permanentemente. Proporciona una razón para el registro.'}
+                {statusAction === 'archive' && 'El proyecto se archivará y ya no aparecerá en las listas activas.'}
+                {statusAction === 'mark-obsolete' && 'El proyecto se marcará como obsoleto. No se podrán crear nuevos tableros y se notificará a todos los miembros del equipo.'}
+              </p>
+            </div>
+            
+            {(statusAction === 'pause' || statusAction === 'cancel' || statusAction === 'complete' || statusAction === 'mark-obsolete') && (
               <div className="mb-4">
                 <label className={`block text-sm font-medium mb-2 ${isDarkTheme ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {statusAction === 'complete' ? 'Notas de completación (opcional):' : 'Razón:'}
+                  {statusAction === 'pause' && 'Razón para pausar el proyecto:'}
+                  {statusAction === 'cancel' && 'Razón para cancelar el proyecto:'}
+                  {statusAction === 'complete' && 'Comentarios sobre la finalización:'}
+                  {statusAction === 'mark-obsolete' && 'Razón para marcar como obsoleto:'}
                 </label>
                 <textarea
                   value={reason}
