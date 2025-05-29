@@ -76,7 +76,7 @@ async def start_project(
     
     # Verificar permisos
     user_id = await _get_user_id(current_user, db)
-    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "project_manager"])
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "product_owner"])
     
     service = ProjectLifecycleService(db)
     
@@ -106,7 +106,7 @@ async def complete_project(
     """Completar un proyecto exitosamente"""
     
     user_id = await _get_user_id(current_user, db)
-    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "project_manager"])
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "product_owner"])
     
     service = ProjectLifecycleService(db)
     
@@ -138,7 +138,7 @@ async def pause_project(
     """Pausar un proyecto temporalmente"""
     
     user_id = await _get_user_id(current_user, db)
-    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "project_manager"])
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "product_owner"])
     
     service = ProjectLifecycleService(db)
     
@@ -169,7 +169,7 @@ async def resume_project(
     """Reanudar un proyecto pausado"""
     
     user_id = await _get_user_id(current_user, db)
-    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "project_manager"])
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "product_owner"])
     
     service = ProjectLifecycleService(db)
     
@@ -269,7 +269,7 @@ async def update_project_dates(
     """Actualizar fechas del proyecto"""
     
     user_id = await _get_user_id(current_user, db)
-    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "project_manager"])
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "product_owner"])
     
     service = ProjectLifecycleService(db)
     
@@ -349,8 +349,8 @@ async def get_projects_requiring_attention(
     user_id = await _get_user_id(current_user, db)
     user_role = await _get_user_role(current_user, db)
     
-    # Solo admins y project managers pueden ver esta información
-    if user_role not in ["admin", "project_manager"]:
+    # Solo admins y product owners pueden ver esta información
+    if user_role not in ["admin", "product_owner"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para acceder a esta información"
@@ -375,7 +375,7 @@ async def create_milestone(
     import uuid
     
     user_id = await _get_user_id(current_user, db)
-    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "project_manager"])
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "product_owner"])
     
     milestone = ProjectMilestone(
         id=str(uuid.uuid4()),
@@ -444,7 +444,7 @@ async def update_milestone(
     """Actualizar un hito del proyecto"""
     
     user_id = await _get_user_id(current_user, db)
-    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "project_manager"])
+    await _check_project_permissions(project_id, user_id, db, required_roles=["admin", "product_owner"])
     
     # Verificar que el hito existe y pertenece al proyecto
     milestone_query = text("""

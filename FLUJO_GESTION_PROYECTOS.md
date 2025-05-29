@@ -33,10 +33,52 @@ PLANNING → ACTIVE → COMPLETED/CANCELLED → ARCHIVED
 
 ### Reglas de Negocio
 
-1. **Solo admins y project managers** pueden cambiar estados de proyecto
-2. **Cancelar requiere razón obligatoria**
-3. **No se puede completar con sprints activos**
-4. **Solo proyectos completados/cancelados pueden archivarse**
+1. **Solo admins y product_owners** pueden cambiar estados de proyecto
+2. **Solo admins** pueden cancelar y archivar proyectos
+3. **Cancelar requiere razón obligatoria** (aplicado por el sistema)
+4. **No se puede completar con sprints activos** (validación automática)
+5. **Solo proyectos completados/cancelados pueden archivarse**
+6. **Los roles de proyecto sobrescriben roles globales** en contexto específico
+
+### Gestión de Roles Duales
+
+El sistema permite **roles diferentes por proyecto**, proporcionando flexibilidad organizacional:
+
+#### Ejemplos de Casos de Uso
+
+```sql
+-- Ejemplo 1: Developer global que es Product Owner en proyecto específico
+user_profiles.role = 'developer'  -- Rol global
+project_members.role = 'product_owner'  -- Rol en proyecto X
+
+-- Ejemplo 2: Admin que participa como developer en un proyecto
+user_profiles.role = 'admin'  -- Rol global  
+project_members.role = 'developer'  -- Rol en proyecto Y
+
+-- Ejemplo 3: Product Owner que es member en otro proyecto
+user_profiles.role = 'product_owner'  -- Rol global
+project_members.role = 'member'  -- Rol en proyecto Z
+```
+
+#### Resolución de Permisos
+
+```python
+# El sistema usa esta lógica de prioridad:
+effective_role = project_role or global_role
+
+# Si el usuario tiene rol específico en el proyecto, se usa ese rol
+# Si no tiene rol específico, se usa su rol global
+# Los admins globales mantienen permisos de admin en todos los proyectos
+```
+
+### Visibilidad de Proyectos por Rol
+
+| Rol | Proyectos Visibles |
+|-----|-------------------|
+| **Admin** | Todos los proyectos del sistema |
+| **Product Owner** | Proyectos donde es miembro + proyectos creados por admins |
+| **Developer** | Solo proyectos donde es miembro |
+| **Member** | Solo proyectos donde es miembro |
 
 ## 📅 Gestión de Fechas
 
@@ -270,18 +312,139 @@ SELECT * FROM projects WHERE
 
 ## 🔐 Permisos y Roles
 
-### Matriz de Permisos
+### Roles Definidos en el Sistema
 
-| Acción | Admin | Project Manager | Member |
-|--------|-------|-----------------|--------|
-| Iniciar proyecto | ✅ | ✅ | ❌ |
-| Completar proyecto | ✅ | ✅ | ❌ |
-| Pausar/Reanudar | ✅ | ✅ | ❌ |
-| Cancelar proyecto | ✅ | ❌ | ❌ |
-| Archivar proyecto | ✅ | ❌ | ❌ |
-| Actualizar fechas | ✅ | ✅ | ❌ |
-| Crear hitos | ✅ | ✅ | ❌ |
-| Ver estado de salud | ✅ | ✅ | ✅ |
+El sistema maneja **4 roles principales** tanto a nivel global como de proyecto:
+
+#### Roles Globales (user_profiles.role)
+- **`admin`**: Administrador del sistema con acceso completo
+- **`product_owner`**: Product Owner con permisos de gestión de productos  
+- **`developer`**: Desarrollador con permisos de ejecución
+- **`member`**: Usuario básico con permisos limitados
+
+#### Roles de Proyecto (project_members.role)
+Los mismos 4 roles se aplican a nivel de proyecto:
+
+- **`admin`**: Administrador con control total del proyecto
+- **`product_owner`**: Product Owner del proyecto
+- **`developer`**: Desarrollador asignado al proyecto
+- **`member`**: Miembro general del proyecto
+
+### Matriz de Permisos Detallada
+
+| Acción | Admin | Product Owner | Developer | Member |
+|--------|-------|---------------|-----------|--------|
+| **Gestión de Proyectos** | | | | |
+| Crear proyecto | ✅ | ✅ | ❌ | ❌ |
+| Iniciar proyecto | ✅ | ✅ | ✅ | ❌ |
+| Completar proyecto | ✅ | ✅ | ✅ | ❌ |
+| Pausar/Reanudar proyecto | ✅ | ✅ | ✅ | ❌ |
+| Cancelar proyecto | ✅ | ❌ | ❌ | ❌ |
+| Archivar proyecto | ✅ | ❌ | ❌ | ❌ |
+| **Gestión de Fechas y Hitos** | | | | |
+| Actualizar fechas del proyecto | ✅ | ✅ | ✅ | ❌ |
+| Crear hitos | ✅ | ✅ | ✅ | ❌ |
+| Actualizar hitos | ✅ | ✅ | ✅ | ❌ |
+| Completar hitos | ✅ | ✅ | ✅ | ✅ |
+| **Gestión de Miembros** | | | | |
+| Añadir miembros al proyecto | ✅ | ✅ | ✅ | ❌ |
+| Remover miembros del proyecto | ✅ | ✅ | ❌ | ❌ |
+| Cambiar roles de miembros | ✅ | ❌ | ❌ | ❌ |
+| **Gestión de Sprints (Scrum)** | | | | |
+| Crear/editar sprints | ✅ | ✅ | ✅ | ❌ |
+| Iniciar/cerrar sprints | ✅ | ✅ | ✅ | ❌ |
+| Gestionar sprint backlog | ✅ | ✅ | ✅ | ✅ |
+| **Monitoreo y Métricas** | | | | |
+| Ver estado de salud | ✅ | ✅ | ✅ | ✅ |
+| Ver proyectos que requieren atención | ✅ | ✅ | ✅ | ❌ |
+| Actualizar porcentaje de completación | ✅ | ✅ | ✅ | ✅ |
+| **Gestión de Contenido Ágil** | | | | |
+| Crear/editar historias de usuario | ✅ | ✅ | ✅ | ✅ |
+| Asignar story points | ✅ | ✅ | ✅ | ✅ |
+| Mover cards en tableros Kanban | ✅ | ✅ | ✅ | ✅ |
+| Crear/completar tareas | ✅ | ✅ | ✅ | ✅ |
+
+### Jerarquía de Roles
+
+```
+ADMIN (Máximo control del sistema)
+  ↓
+PRODUCT_OWNER (Gestión de producto)
+  ↓
+DEVELOPER (Ejecución y desarrollo)
+  ↓
+MEMBER (Participación limitada)
+```
+
+### Reglas de Negocio por Rol
+
+#### 🔑 **Admin**
+- **Acceso completo** a todos los proyectos del sistema
+- **Único rol** que puede cancelar y archivar proyectos
+- Puede **cambiar roles** de otros usuarios
+- Acceso a **métricas globales** y proyectos que requieren atención
+
+#### 👑 **Product Owner**
+- **Gestión completa** de proyectos donde es miembro
+- Puede **iniciar, completar, pausar y reanudar** proyectos
+- Gestiona **fechas, hitos y miembros** del proyecto
+- Ve **todos los desarrolladores** para asignación de tareas
+- Acceso a **métricas de sus proyectos**
+
+#### 💻 **Developer**
+- **Ejecución de tareas** en proyectos asignados
+- Puede **completar hitos** y actualizar progreso
+- **Gestión de sprint backlog** y asignación de story points
+- Puede **mover cards** en tableros Kanban
+- Ve **métricas básicas** del proyecto
+
+#### 👤 **Member**
+- **Participación básica** en proyectos
+- Solo puede **ver** información del proyecto
+- Puede **mover sus propias cards** en tableros
+- **Acceso limitado** a métricas
+
+### Flujos de API por Rol
+
+#### Flujo de Admin
+```bash
+# Admin puede hacer todo en cualquier proyecto
+POST /api/projects/{project_id}/start
+POST /api/projects/{project_id}/complete  
+POST /api/projects/{project_id}/cancel     # Solo admin
+POST /api/projects/{project_id}/archive    # Solo admin
+PUT /api/projects/{project_id}/dates
+POST /api/projects/{project_id}/milestones
+```
+
+#### Flujo de Product Owner
+```bash
+# Product Owner: gestión completa en sus proyectos
+POST /api/projects/{project_id}/start
+POST /api/projects/{project_id}/complete
+POST /api/projects/{project_id}/pause
+POST /api/projects/{project_id}/resume
+PUT /api/projects/{project_id}/dates
+POST /api/projects/{project_id}/milestones
+POST /api/projects/{project_id}/members
+```
+
+#### Flujo de Developer
+```bash
+# Developer: participación activa pero sin gestión
+GET /api/projects/{project_id}/health
+PUT /api/projects/{project_id}/milestones/{milestone_id}
+POST /api/projects/{project_id}/update-completion
+GET /api/projects/{project_id}/milestones
+```
+
+#### Flujo de Member
+```bash
+# Member solo puede ver y participar básicamente
+GET /api/projects/{project_id}/health
+GET /api/projects/{project_id}/milestones
+POST /api/boards/{board_id}/cards/{own_card_id}/move
+```
 
 ## 🗄️ Auditoría y Trazabilidad
 
