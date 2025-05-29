@@ -170,7 +170,7 @@ class ProjectActivity(BaseModel, table=True):
     user_id: str = Field(foreign_key="user_profiles.id")
     activity_type: str  # created, status_changed, member_added, milestone_completed, etc.
     description: str
-    metadata: Optional[str] = None  # JSON string con datos adicionales
+    extra_data: Optional[str] = None  # JSON string con datos adicionales
     
     # Relaciones
     project = Relationship(

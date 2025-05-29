@@ -458,7 +458,7 @@ interface ProjectActivity {
   user_id: string
   activity_type: string  // 'project_started', 'project_completed', etc.
   description: string
-  metadata?: string      // JSON con datos adicionales
+  extra_data?: string      // JSON con datos adicionales
   created_at: datetime
 }
 ```
@@ -469,7 +469,7 @@ interface ProjectActivity {
 {
   "activity_type": "project_completed",
   "description": "Proyecto completado exitosamente el 2024-01-15",
-  "metadata": {
+  "extra_data": {
     "completion_notes": "Entregado al cliente",
     "stats": {
       "total_stories": 45,

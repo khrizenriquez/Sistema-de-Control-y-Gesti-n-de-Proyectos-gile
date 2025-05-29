@@ -83,7 +83,7 @@ def upgrade() -> None:
         sa.Column('user_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column('activity_type', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column('metadata', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+        sa.Column('extra_data', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),

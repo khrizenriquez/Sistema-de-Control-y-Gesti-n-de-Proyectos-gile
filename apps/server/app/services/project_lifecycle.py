@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
 from sqlalchemy.sql import text
 import json
+import uuid
 
 from app.models.project import Project, ProjectStatus, ProjectMilestone, ProjectActivity
 from app.models.agile import Sprint, UserStory, Task
@@ -33,11 +34,16 @@ class ProjectLifecycleService:
         project.updated_at = datetime.utcnow()
         
         # Registrar actividad
+        activity_data = {
+            "start_date": project.start_date.strftime('%Y-%m-%d')
+        }
+        
         await self._log_activity(
             project_id=project_id,
             user_id=user_id,
             activity_type="project_started",
-            description=f"Proyecto iniciado el {project.start_date.strftime('%Y-%m-%d')}"
+            description=f"Proyecto iniciado el {project.start_date.strftime('%Y-%m-%d')}",
+            extra_data=json.dumps(activity_data)
         )
         
         self.db.commit()
@@ -76,7 +82,7 @@ class ProjectLifecycleService:
             user_id=user_id,
             activity_type="project_completed",
             description=f"Proyecto completado exitosamente el {project.actual_end_date.strftime('%Y-%m-%d')}",
-            metadata=json.dumps(activity_data)
+            extra_data=json.dumps(activity_data)
         )
         
         self.db.commit()
@@ -98,8 +104,8 @@ class ProjectLifecycleService:
             project_id=project_id,
             user_id=user_id,
             activity_type="project_paused",
-            description=f"Proyecto pausado: {reason or 'Sin razón especificada'}",
-            metadata=json.dumps({"reason": reason}) if reason else None
+            description=f"Proyecto pausado el {datetime.utcnow().strftime('%Y-%m-%d')}",
+            extra_data=json.dumps({"reason": reason}) if reason else None
         )
         
         self.db.commit()
@@ -144,8 +150,8 @@ class ProjectLifecycleService:
             project_id=project_id,
             user_id=user_id,
             activity_type="project_cancelled",
-            description=f"Proyecto cancelado: {reason}",
-            metadata=json.dumps({"reason": reason})
+            description=f"Proyecto cancelado el {datetime.utcnow().strftime('%Y-%m-%d')}",
+            extra_data=json.dumps({"reason": reason})
         )
         
         self.db.commit()
@@ -403,20 +409,21 @@ class ProjectLifecycleService:
         }
     
     async def _log_activity(
-        self, 
-        project_id: str, 
-        user_id: str, 
-        activity_type: str, 
+        self,
+        project_id: str,
+        user_id: str,
+        activity_type: str,
         description: str,
-        metadata: Optional[str] = None
+        extra_data: Optional[str] = None
     ):
         """Registrar actividad del proyecto"""
         activity = ProjectActivity(
+            id=str(uuid.uuid4()),
             project_id=project_id,
             user_id=user_id,
             activity_type=activity_type,
             description=description,
-            metadata=metadata
+            extra_data=extra_data
         )
         
         self.db.add(activity)
