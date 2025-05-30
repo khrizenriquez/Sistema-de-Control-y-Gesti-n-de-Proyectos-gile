@@ -112,8 +112,8 @@ async def create_sprint(
     sprint_id = str(uuid.uuid4())
     
     create_sprint_query = text("""
-        INSERT INTO sprints (id, name, project_id, goal, start_date, end_date, status, created_at, updated_at)
-        VALUES (:id, :name, :project_id, :goal, :start_date, :end_date, 'planning', NOW(), NOW())
+        INSERT INTO sprints (id, name, project_id, goal, start_date, end_date, status, is_active, created_at, updated_at)
+        VALUES (:id, :name, :project_id, :goal, :start_date, :end_date, 'planning', true, NOW(), NOW())
         RETURNING id, name, project_id, goal, start_date, end_date, status, created_at
     """)
     

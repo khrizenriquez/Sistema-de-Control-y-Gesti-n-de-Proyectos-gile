@@ -33,6 +33,7 @@ export interface CreateBoardRequest {
   name: string;
   project_id: string;
   template?: string;
+  sections?: Array<{ id: string; name: string; }>;
 }
 
 export interface List {

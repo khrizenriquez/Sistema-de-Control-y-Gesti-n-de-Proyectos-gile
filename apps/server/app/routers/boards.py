@@ -21,10 +21,15 @@ router = APIRouter(
 )
 
 # Esquemas para las peticiones y respuestas
+class BoardSection(BaseModel):
+    id: str
+    name: str
+
 class BoardCreate(BaseModel):
     name: str
     project_id: str
     template: Optional[str] = "kanban"  # kanban o scrum
+    sections: Optional[TypeList[BoardSection]] = None
 
 class BoardResponse(BaseModel):
     id: str
@@ -234,10 +239,20 @@ async def create_board(
         "project_id": board_data.project_id
     })
     
-    # Crear listas por defecto según el template
-    if board_data.template == "kanban":
+    # Crear listas por defecto según el template o usar secciones personalizadas
+    # Priorizar secciones personalizadas sobre template
+    if board_data.sections and len(board_data.sections) > 0:
+        # Usar secciones personalizadas
+        lists = [section.name for section in board_data.sections]
+    elif board_data.template == "kanban":
         lists = ["To Do", "In Progress", "Done"]
-    else:  # scrum
+    elif board_data.template == "scrum":
+        lists = ["Backlog", "Sprint", "In Progress", "Review", "Done"]
+    elif board_data.template == "custom":
+        # Para custom sin secciones, usar kanban por defecto
+        lists = ["To Do", "In Progress", "Done"]
+    else:
+        # Por defecto usar scrum
         lists = ["Backlog", "Sprint", "In Progress", "Review", "Done"]
     
     for i, list_name in enumerate(lists):
@@ -1693,8 +1708,8 @@ async def create_sprint_for_board(
     end_date = start_date + timedelta(weeks=duration_weeks)
     
     sprint_insert = text("""
-        INSERT INTO sprints (id, name, project_id, goal, start_date, end_date, status, created_at)
-        VALUES (:sprint_id, :name, :project_id, :goal, :start_date, :end_date, 'planning', NOW())
+        INSERT INTO sprints (id, name, project_id, goal, start_date, end_date, status, is_active, created_at)
+        VALUES (:sprint_id, :name, :project_id, :goal, :start_date, :end_date, 'planning', true, NOW())
         RETURNING id
     """)
     

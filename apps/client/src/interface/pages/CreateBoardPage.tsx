@@ -154,6 +154,11 @@ export const CreateBoardPage: FunctionComponent = () => {
         template: boardData.template,
       };
       
+      // Si hay secciones personalizadas y no es la plantilla por defecto, enviarlas
+      if (boardData.sections.length > 0) {
+        createRequest.sections = boardData.sections;
+      }
+      
       const createdBoard = await boardService.createBoard(createRequest);
       
       // Redirigir al usuario a la página de tableros
