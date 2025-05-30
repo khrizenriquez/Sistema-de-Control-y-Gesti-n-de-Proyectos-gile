@@ -12,6 +12,7 @@ from sqlalchemy.sql import text
 import uuid
 import datetime
 import json
+from datetime import datetime, timedelta
 
 router = APIRouter(
     prefix="/boards",
@@ -20,10 +21,15 @@ router = APIRouter(
 )
 
 # Esquemas para las peticiones y respuestas
+class BoardSection(BaseModel):
+    id: str
+    name: str
+
 class BoardCreate(BaseModel):
     name: str
     project_id: str
     template: Optional[str] = "kanban"  # kanban o scrum
+    sections: Optional[TypeList[BoardSection]] = None
 
 class BoardResponse(BaseModel):
     id: str
@@ -189,16 +195,33 @@ async def create_board(
             detail="Solo los Product Owners o Administradores pueden crear tableros"
         )
     
-    # Verificar que el proyecto existe
+    # Verificar que el proyecto existe y está activo para desarrollo
     project_query = text("""
-        SELECT id FROM projects
+        SELECT id, status FROM projects
         WHERE id = :project_id
     """)
     project_result = db.execute(project_query, {"project_id": board_data.project_id})
-    if not project_result.fetchone():
+    project_record = project_result.fetchone()
+    
+    if not project_record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Proyecto no encontrado"
+        )
+    
+    project_status = project_record[1]
+    
+    # Verificar que el proyecto no esté obsoleto, archivado, cancelado o completado
+    if project_status in ["obsolete", "archived", "cancelled", "completed"]:
+        status_messages = {
+            "obsolete": "El proyecto está marcado como obsoleto. No se pueden crear nuevos tableros.",
+            "archived": "El proyecto está archivado. No se pueden crear nuevos tableros.",
+            "cancelled": "El proyecto está cancelado. No se pueden crear nuevos tableros.",
+            "completed": "El proyecto está completado. No se pueden crear nuevos tableros."
+        }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=status_messages[project_status]
         )
     
     # Crear el tablero
@@ -216,10 +239,20 @@ async def create_board(
         "project_id": board_data.project_id
     })
     
-    # Crear listas por defecto según el template
-    if board_data.template == "kanban":
+    # Crear listas por defecto según el template o usar secciones personalizadas
+    # Priorizar secciones personalizadas sobre template
+    if board_data.sections and len(board_data.sections) > 0:
+        # Usar secciones personalizadas
+        lists = [section.name for section in board_data.sections]
+    elif board_data.template == "kanban":
         lists = ["To Do", "In Progress", "Done"]
-    else:  # scrum
+    elif board_data.template == "scrum":
+        lists = ["Backlog", "Sprint", "In Progress", "Review", "Done"]
+    elif board_data.template == "custom":
+        # Para custom sin secciones, usar kanban por defecto
+        lists = ["To Do", "In Progress", "Done"]
+    else:
+        # Por defecto usar scrum
         lists = ["Backlog", "Sprint", "In Progress", "Review", "Done"]
     
     for i, list_name in enumerate(lists):
@@ -1530,3 +1563,295 @@ async def is_board_accessible(board_id: str, current_user: AuthUser, db: Session
     assigned_result = db.execute(assigned_cards_query, {"board_id": board_id, "user_id": local_user_id})
     
     return assigned_result.fetchone() is not None 
+
+@router.get("/{board_id}/sprint")
+async def get_board_sprint_info(
+    board_id: str,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener información del sprint activo para un tablero Scrum"""
+    
+    # Verificar acceso al tablero
+    board_accessible = await is_board_accessible(board_id, current_user, db)
+    if not board_accessible:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para ver este tablero"
+        )
+    
+    # Obtener proyecto del tablero
+    project_query = text("""
+        SELECT b.project_id, p.name as project_name
+        FROM boards b
+        JOIN projects p ON b.project_id = p.id
+        WHERE b.id = :board_id
+    """)
+    project_result = db.execute(project_query, {"board_id": board_id})
+    project_record = project_result.fetchone()
+    
+    if not project_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tablero no encontrado"
+        )
+    
+    project_id = project_record[0]
+    
+    # Obtener sprint activo del proyecto
+    sprint_query = text("""
+        SELECT 
+            s.id, s.name, s.goal, s.start_date, s.end_date, s.status,
+            COUNT(sb.story_id) as stories_count,
+            COUNT(CASE WHEN us.status = 'done' THEN 1 END) as completed_stories_count
+        FROM sprints s
+        LEFT JOIN sprint_backlog sb ON s.id = sb.sprint_id
+        LEFT JOIN user_stories us ON sb.story_id = us.id
+        WHERE s.project_id = :project_id AND s.status = 'active'
+        GROUP BY s.id, s.name, s.goal, s.start_date, s.end_date, s.status
+        ORDER BY s.start_date DESC
+        LIMIT 1
+    """)
+    
+    sprint_result = db.execute(sprint_query, {"project_id": project_id})
+    sprint_record = sprint_result.fetchone()
+    
+    if not sprint_record:
+        # No hay sprint activo, buscar el último sprint
+        last_sprint_query = text("""
+            SELECT 
+                s.id, s.name, s.goal, s.start_date, s.end_date, s.status,
+                COUNT(sb.story_id) as stories_count,
+                COUNT(CASE WHEN us.status = 'done' THEN 1 END) as completed_stories_count
+            FROM sprints s
+            LEFT JOIN sprint_backlog sb ON s.id = sb.sprint_id
+            LEFT JOIN user_stories us ON sb.story_id = us.id
+            WHERE s.project_id = :project_id
+            GROUP BY s.id, s.name, s.goal, s.start_date, s.end_date, s.status
+            ORDER BY s.created_at DESC
+            LIMIT 1
+        """)
+        
+        sprint_result = db.execute(last_sprint_query, {"project_id": project_id})
+        sprint_record = sprint_result.fetchone()
+        
+        if not sprint_record:
+            return {
+                "project_id": project_id,
+                "project_name": project_record[1],
+                "active_sprint": None,
+                "message": "No hay sprints creados para este proyecto"
+            }
+    
+    # Calcular días restantes
+    days_remaining = None
+    if sprint_record[4]:  # end_date
+        from datetime import datetime
+        end_date = sprint_record[4]
+        now = datetime.utcnow()
+        if end_date > now:
+            days_remaining = (end_date - now).days
+    
+    # Calcular progreso
+    progress_percentage = 0
+    if sprint_record[6] > 0:  # stories_count
+        progress_percentage = (sprint_record[7] / sprint_record[6]) * 100
+    
+    return {
+        "project_id": project_id,
+        "project_name": project_record[1],
+        "active_sprint": {
+            "id": sprint_record[0],
+            "name": sprint_record[1],
+            "goal": sprint_record[2],
+            "start_date": sprint_record[3].isoformat() if sprint_record[3] else None,
+            "end_date": sprint_record[4].isoformat() if sprint_record[4] else None,
+            "status": sprint_record[5],
+            "days_remaining": days_remaining,
+            "stories_count": sprint_record[6],
+            "completed_stories_count": sprint_record[7],
+            "progress_percentage": round(progress_percentage, 1)
+        }
+    } 
+
+# Endpoints para funcionalidad básica de Sprints
+@router.post("/{board_id}/sprints")
+async def create_sprint_for_board(
+    board_id: str,
+    sprint_data: dict,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Crear un sprint para un tablero específico"""
+    # Verificar acceso al tablero
+    board_accessible = await is_board_accessible(board_id, current_user, db)
+    if not board_accessible:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para este tablero"
+        )
+    
+    # Obtener proyecto del tablero
+    project_query = text("""
+        SELECT b.project_id FROM boards b WHERE b.id = :board_id
+    """)
+    project_result = db.execute(project_query, {"board_id": board_id}).fetchone()
+    
+    if not project_result:
+        raise HTTPException(status_code=404, detail="Tablero no encontrado")
+    
+    project_id = project_result[0]
+    
+    # Crear sprint
+    duration_weeks = sprint_data.get("duration_weeks", 2)
+    start_date = datetime.now()
+    end_date = start_date + timedelta(weeks=duration_weeks)
+    
+    sprint_insert = text("""
+        INSERT INTO sprints (id, name, project_id, goal, start_date, end_date, status, is_active, created_at)
+        VALUES (:sprint_id, :name, :project_id, :goal, :start_date, :end_date, 'planning', true, NOW())
+        RETURNING id
+    """)
+    
+    import uuid
+    sprint_id = str(uuid.uuid4())
+    
+    db.execute(sprint_insert, {
+        "sprint_id": sprint_id,
+        "name": sprint_data.get("name", f"Sprint {sprint_id[:8]}"),
+        "project_id": project_id,
+        "goal": sprint_data.get("goal", ""),
+        "start_date": start_date,
+        "end_date": end_date
+    })
+    db.commit()
+    
+    return {
+        "id": sprint_id,
+        "name": sprint_data.get("name"),
+        "project_id": project_id,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "status": "planning",
+        "duration_weeks": duration_weeks
+    }
+
+@router.get("/{board_id}/sprints")
+async def get_board_sprints(
+    board_id: str,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener sprints de un tablero"""
+    # Verificar acceso al tablero
+    board_accessible = await is_board_accessible(board_id, current_user, db)
+    if not board_accessible:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para este tablero"
+        )
+    
+    sprints_query = text("""
+        SELECT s.id, s.name, s.goal, s.start_date, s.end_date, s.status,
+               EXTRACT(EPOCH FROM (s.end_date - NOW())) / 86400 as days_remaining
+        FROM sprints s
+        JOIN boards b ON s.project_id = b.project_id
+        WHERE b.id = :board_id
+        ORDER BY s.start_date DESC
+    """)
+    
+    sprints_result = db.execute(sprints_query, {"board_id": board_id}).fetchall()
+    
+    sprints = []
+    for sprint in sprints_result:
+        sprints.append({
+            "id": sprint[0],
+            "name": sprint[1],
+            "goal": sprint[2],
+            "start_date": sprint[3].isoformat() if sprint[3] else None,
+            "end_date": sprint[4].isoformat() if sprint[4] else None,
+            "status": sprint[5],
+            "days_remaining": max(0, int(sprint[6])) if sprint[6] else 0
+        })
+    
+    return {"sprints": sprints}
+
+@router.get("/{board_id}/sprint-info")
+async def get_current_sprint_info(
+    board_id: str,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener información del sprint activo para mostrar en el tablero"""
+    # Verificar acceso al tablero
+    board_accessible = await is_board_accessible(board_id, current_user, db)
+    if not board_accessible:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para este tablero"
+        )
+    
+    # Obtener sprint activo
+    sprint_query = text("""
+        SELECT s.id, s.name, s.goal, s.start_date, s.end_date, s.status,
+               b.project_id, p.name as project_name,
+               EXTRACT(EPOCH FROM (s.end_date - NOW())) / 86400 as days_remaining,
+               COUNT(CASE WHEN c.list_id IN (
+                   SELECT l.id FROM lists l WHERE l.board_id = :board_id
+               ) THEN 1 END) as total_cards,
+               COUNT(CASE WHEN c.list_id IN (
+                   SELECT l.id FROM lists l WHERE l.board_id = :board_id AND l.title ILIKE '%complet%'
+               ) THEN 1 END) as completed_cards
+        FROM sprints s
+        JOIN boards b ON s.project_id = b.project_id
+        JOIN projects p ON b.project_id = p.id
+        LEFT JOIN lists l ON l.board_id = :board_id
+        LEFT JOIN cards c ON c.list_id = l.id
+        WHERE b.id = :board_id 
+        AND (s.status = 'active' OR (s.status = 'planning' AND s.start_date <= NOW() + INTERVAL '7 days'))
+        GROUP BY s.id, s.name, s.goal, s.start_date, s.end_date, s.status, b.project_id, p.name
+        ORDER BY s.start_date DESC
+        LIMIT 1
+    """)
+    
+    sprint_result = db.execute(sprint_query, {"board_id": board_id}).fetchone()
+    
+    if not sprint_result:
+        # No hay sprint activo, obtener información del proyecto
+        project_query = text("""
+            SELECT b.project_id, p.name as project_name
+            FROM boards b
+            JOIN projects p ON b.project_id = p.id
+            WHERE b.id = :board_id
+        """)
+        project_result = db.execute(project_query, {"board_id": board_id}).fetchone()
+        
+        if project_result:
+            return {
+                "project_id": project_result[0],
+                "project_name": project_result[1],
+                "message": "No hay sprint activo. ¡Crea uno nuevo para comenzar!"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Tablero no encontrado")
+    
+    total_cards = sprint_result[9] or 0
+    completed_cards = sprint_result[10] or 0
+    progress_percentage = (completed_cards / total_cards * 100) if total_cards > 0 else 0
+    
+    return {
+        "project_id": sprint_result[6],
+        "project_name": sprint_result[7],
+        "active_sprint": {
+            "id": sprint_result[0],
+            "name": sprint_result[1],
+            "goal": sprint_result[2] or "",
+            "start_date": sprint_result[3].isoformat() if sprint_result[3] else None,
+            "end_date": sprint_result[4].isoformat() if sprint_result[4] else None,
+            "status": sprint_result[5],
+            "days_remaining": max(0, int(sprint_result[8])) if sprint_result[8] else 0,
+            "stories_count": total_cards,
+            "completed_stories_count": completed_cards,
+            "progress_percentage": round(progress_percentage, 1)
+        }
+    } 

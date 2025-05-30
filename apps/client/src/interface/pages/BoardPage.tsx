@@ -4,6 +4,8 @@ import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { KanbanColumn } from '../components/KanbanColumn';
 import { useRoute } from 'wouter-preact';
 import { BoardService, UpdateBoardOrder, User } from '../../domain/services/BoardService';
+import { useTheme } from '../../context/ThemeContext';
+import { SprintInfo } from '../components/SprintInfo';
 
 // Tipos
 interface Card {
@@ -53,6 +55,7 @@ export const BoardPage: FunctionComponent = () => {
   const [error, setError] = useState<string | null>(null);
   const [developers, setDevelopers] = useState<User[]>([]);
   const boardService = new BoardService();
+  const { isDarkTheme } = useTheme();
 
   // Cargar datos del tablero
   useEffect(() => {
@@ -271,6 +274,9 @@ export const BoardPage: FunctionComponent = () => {
     );
   }
 
+  // Detectar si es tablero Scrum (más de 3 columnas indica Scrum)
+  const isScrum = board && board.columns.length > 3;
+
   return (
     <div className="p-6">
       <header className="mb-6">
@@ -280,6 +286,11 @@ export const BoardPage: FunctionComponent = () => {
         )}
         {board.description && <p className="text-gray-600">{board.description}</p>}
       </header>
+
+      {/* Mostrar información del sprint solo para tableros Scrum */}
+      {isScrum && boardId && (
+        <SprintInfo boardId={boardId} isDarkTheme={isDarkTheme} />
+      )}
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex gap-6 overflow-x-auto pb-4">

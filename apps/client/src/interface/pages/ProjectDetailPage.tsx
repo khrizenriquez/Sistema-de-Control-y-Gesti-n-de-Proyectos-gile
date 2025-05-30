@@ -7,8 +7,8 @@ interface Project {
   id: string;
   name: string;
   description?: string;
-  created_at: string;
-  created_by: string;
+  created_at?: string;
+  created_by?: string;
 }
 
 export const ProjectDetailPage = () => {
@@ -59,6 +59,12 @@ export const ProjectDetailPage = () => {
   const handleCreateBoard = () => {
     if (project) {
       navigate(`/boards/new?projectId=${project.id}`);
+    }
+  };
+
+  const handleSprintsClick = () => {
+    if (project) {
+      navigate(`/projects/${project.id}/sprints`);
     }
   };
 
@@ -119,7 +125,7 @@ export const ProjectDetailPage = () => {
             {project.name}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Creado por {project.created_by} el {new Date(project.created_at).toLocaleDateString()}
+            Creado por {project.created_by || 'Usuario desconocido'} el {new Date(project.created_at || '').toLocaleDateString()}
           </p>
         </div>
         <div className="flex space-x-2">
@@ -129,18 +135,26 @@ export const ProjectDetailPage = () => {
           >
             Volver
           </button>
-          <button 
-            className={secondaryButtonClass}
-            onClick={handleMembersClick}
-          >
-            Ver miembros
-          </button>
-          <button 
-            className={buttonClass}
-            onClick={handleCreateBoard}
-          >
-            Crear tablero
-          </button>
+          <div className="flex flex-col md:flex-row gap-4">
+            <button 
+              onClick={handleCreateBoard}
+              className={buttonClass}
+            >
+              Crear tablero
+            </button>
+            <button 
+              onClick={handleSprintsClick}
+              className={buttonClass}
+            >
+              Gestionar Sprints
+            </button>
+            <button 
+              onClick={handleMembersClick}
+              className={secondaryButtonClass}
+            >
+              Ver miembros
+            </button>
+          </div>
         </div>
       </div>
 

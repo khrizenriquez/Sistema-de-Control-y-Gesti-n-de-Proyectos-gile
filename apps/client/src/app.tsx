@@ -19,6 +19,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import { ProjectsPage } from './interface/pages/ProjectsPage';
 import { ProjectDetailPage } from './interface/pages/ProjectDetailPage';
 import { ProjectMembersPage } from './interface/pages/ProjectMembersPage';
+import { SprintManagementPage } from './interface/pages/SprintManagementPage';
 import './style.css'
 
 // Componente para rutas que requieren autenticación y tienen el Layout
@@ -61,6 +62,7 @@ export function App() {
         <AuthRouteWithLayout path="/projects" component={ProjectsPage} />
         <AuthRouteWithLayout path="/projects/:id" component={ProjectDetailPage} />
         <AuthRouteWithLayout path="/projects/:id/members" component={ProjectMembersPage} />
+        <AuthRouteWithLayout path="/projects/:projectId/sprints" component={SprintManagementPage} />
       </Switch>
       
       {/* Componente de utilidad */}

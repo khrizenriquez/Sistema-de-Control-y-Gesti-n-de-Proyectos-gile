@@ -40,6 +40,45 @@ export const CreateBoardPage: FunctionComponent = () => {
   const totalSteps = 3;
   const progress = (step / totalSteps) * 100;
 
+  // Plantillas predefinidas
+  const templates = {
+    kanban: {
+      name: 'Kanban',
+      description: 'Tablero simple con flujo continuo',
+      sections: [
+        { id: '1', name: 'Por hacer' },
+        { id: '2', name: 'En progreso' },
+        { id: '3', name: 'Completado' }
+      ]
+    },
+    scrum: {
+      name: 'Scrum',
+      description: 'Tablero para metodología Scrum con sprints',
+      sections: [
+        { id: '1', name: 'Product Backlog' },
+        { id: '2', name: 'Sprint Backlog' },
+        { id: '3', name: 'En progreso' },
+        { id: '4', name: 'En revisión' },
+        { id: '5', name: 'Completado' }
+      ]
+    },
+    custom: {
+      name: 'Personalizado',
+      description: 'Crea tu propio flujo de trabajo',
+      sections: []
+    }
+  };
+
+  // Función para aplicar plantilla
+  const applyTemplate = (templateKey: string) => {
+    const template = templates[templateKey as keyof typeof templates];
+    setBoardData(prev => ({
+      ...prev,
+      template: templateKey,
+      sections: [...template.sections]
+    }));
+  };
+
   useEffect(() => {
     // Cargar proyectos disponibles
     const loadProjects = async () => {
@@ -114,6 +153,11 @@ export const CreateBoardPage: FunctionComponent = () => {
         project_id: boardData.project_id,
         template: boardData.template,
       };
+      
+      // Si hay secciones personalizadas y no es la plantilla por defecto, enviarlas
+      if (boardData.sections.length > 0) {
+        createRequest.sections = boardData.sections;
+      }
       
       const createdBoard = await boardService.createBoard(createRequest);
       
@@ -264,7 +308,7 @@ export const CreateBoardPage: FunctionComponent = () => {
           <div className="max-w-2xl mx-auto">
             {step === 1 && (
               <div className="space-y-6">
-                <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Nombra tu tablero</h1>
+                <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Crea tu tablero</h1>
                 
                 {/* Seleccionar un proyecto */}
                 <div className="mb-4">
@@ -294,30 +338,48 @@ export const CreateBoardPage: FunctionComponent = () => {
                 </div>
                 
                 <div>
-                  <label className={`block ${textClass} mb-2`}>Tipo de tablero</label>
-                  <div className="flex space-x-4">
-                    <label className={`flex items-center ${textClass} cursor-pointer`}>
-                      <input
-                        type="radio"
-                        name="template"
-                        value="kanban"
-                        checked={boardData.template === 'kanban'}
-                        onChange={() => setBoardData(prev => ({ ...prev, template: 'kanban' }))}
-                        className="mr-2"
-                      />
-                      Kanban (To Do, In Progress, Done)
-                    </label>
-                    <label className={`flex items-center ${textClass} cursor-pointer`}>
-                      <input
-                        type="radio"
-                        name="template"
-                        value="scrum"
-                        checked={boardData.template === 'scrum'}
-                        onChange={() => setBoardData(prev => ({ ...prev, template: 'scrum' }))}
-                        className="mr-2"
-                      />
-                      Scrum
-                    </label>
+                  <label className={`block ${textClass} mb-4`}>Elige una plantilla</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Object.entries(templates).map(([key, template]) => (
+                      <div
+                        key={key}
+                        onClick={() => applyTemplate(key)}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          boardData.template === key
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                        } ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {template.name}
+                          </h3>
+                          {boardData.template === key && (
+                            <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                        <p className={`text-sm ${textClass} mb-3`}>{template.description}</p>
+                        {template.sections.length > 0 && (
+                          <div className="space-y-1">
+                            <p className={`text-xs font-medium ${textClass}`}>Columnas:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {template.sections.map((section, index) => (
+                                <span
+                                  key={index}
+                                  className={`px-2 py-1 text-xs rounded ${
+                                    isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  {section.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

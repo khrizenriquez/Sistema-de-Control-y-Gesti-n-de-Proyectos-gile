@@ -18,8 +18,14 @@ engine = create_engine(
 )
 
 # Engine para operaciones asíncronas (API)
+# Asegurar que use asyncpg para conexiones asíncronas
+async_database_url = settings.DATABASE_URL
+if not async_database_url.startswith('postgresql+asyncpg://'):
+    # Si no tiene el driver especificado, agregarlo
+    async_database_url = async_database_url.replace('postgresql://', 'postgresql+asyncpg://')
+
 async_engine = create_async_engine(
-    settings.DATABASE_URL,
+    async_database_url,
     echo=True,
     future=True
 )
