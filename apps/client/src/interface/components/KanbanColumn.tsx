@@ -55,6 +55,9 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
   // Check if this is a "To Do" column (it should be the first column where we can add cards)
   const isToDoColumn = column.title === "To Do";
 
+  // Allow adding cards to any column
+  const canAddCards = true;
+
   // Convert column card format to KanbanCard format
   const convertCardFormat = (card: ColumnCardType) => {
     // Convert attachments from number to array of objects as expected by KanbanCard
@@ -138,8 +141,8 @@ export const KanbanColumn: FunctionComponent<KanbanColumnProps> = ({
         )}
       </Droppable>
 
-      {/* Add Card Form/Button - Only show for "To Do" column */}
-      {isToDoColumn && (
+      {/* Add Card Form/Button - Allow in any column */}
+      {canAddCards && (
         <>
           {isAddingCard ? (
             <form onSubmit={handleAddCard} className="mt-2 p-2 bg-white dark:bg-gray-700 rounded shadow-sm">

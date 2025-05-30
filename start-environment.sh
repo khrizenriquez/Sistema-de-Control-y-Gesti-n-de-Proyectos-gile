@@ -75,7 +75,7 @@ podman rm pgadmin server client 2>/dev/null || true
 
 # Crear la red si no existe
 print_message "Creando red de contenedores..."
-podman network create agile-network 2>/dev/null || true
+podman network create agile-net 2>/dev/null || true
 
 # Configuración de variables
 DB_PASSWORD=${DB_PASSWORD:-agilepassword}
@@ -88,7 +88,7 @@ if [ "$BUILD" = true ]; then
   cd apps/server && podman build -t server-app . && cd ../../
   
   print_message "Construyendo imagen del cliente..."
-  cd apps/client && podman build -t client-dev . && cd ../../
+  cd apps/client && podman build -t client-app . && cd ../../
 fi
 
 # Iniciar contenedor de base de datos
@@ -100,7 +100,7 @@ podman run -d \
   --memory=512m \
   --memory-swap=768m \
   --cpus=1.0 \
-  --network=agile-network \
+  --network=agile-net \
   -e POSTGRES_USER=agileuser \
   -e POSTGRES_PASSWORD=${DB_PASSWORD} \
   -e POSTGRES_DB=agiledb \
@@ -126,7 +126,7 @@ if [ "$NO_PGADMIN" = false ]; then
     --memory=256m \
     --memory-swap=384m \
     --cpus=0.5 \
-    --network=agile-network \
+    --network=agile-net \
     -e PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL} \
     -e PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD} \
     -p 5050:80 \
@@ -145,7 +145,7 @@ podman run -d \
   --memory-swap=1.5g \
   --cpus=1.5 \
   -p 8000:8000 \
-  --network=agile-network \
+  --network=agile-net \
   -e DATABASE_URL=postgresql+asyncpg://agileuser:${DB_PASSWORD}@db:5432/agiledb \
   -e INITIALIZE_DB=true \
   -e SUPABASE_URL=${SUPABASE_URL:-""} \
@@ -176,13 +176,13 @@ if [ "$DEV" = true ]; then
     --memory=512m \
     --memory-swap=768m \
     --cpus=1.0 \
-    -p 3000:5173 \
-    --network=agile-network \
+    -p 3000:3000 \
+    --network=agile-net \
     -v "$(pwd)/apps/client/src:/app/src" \
     -v "$(pwd)/apps/client/public:/app/public" \
     -v "$(pwd)/apps/client/index.html:/app/index.html" \
     -v "$(pwd)/apps/client/.env:/app/.env" \
-    localhost/client-dev:latest
+    localhost/client-app:latest
 
   # Verificar que el archivo .env está disponible dentro del contenedor
   if ! podman exec client test -f /app/.env; then
@@ -196,7 +196,8 @@ if [ "$DEV" = true ]; then
     fi
   fi
 else
-  # Modo normal sin montar volúmenes
+  # Modo producción
+  print_message "Iniciando cliente en modo producción..."
   podman run -d \
     --name client \
     --replace \
@@ -204,9 +205,9 @@ else
     --memory=512m \
     --memory-swap=768m \
     --cpus=1.0 \
-    -p 3000:5173 \
-    --network=agile-network \
-    localhost/client-dev:latest
+    -p 3000:3000 \
+    --network=agile-net \
+    localhost/client-app:latest
 fi
 
 # Mostrar estado de los contenedores

@@ -37,6 +37,7 @@ class Sprint(BaseModel, table=True):
     end_date: Optional[datetime] = None
     goal: Optional[str] = None
     status: str = "planning"  # planning, active, completed, cancelled
+    is_active: bool = True
     
     # Relaciones - usar mismo patrón que UserStory
     project = Relationship(sa_relationship=relationship("Project", back_populates="sprints"))

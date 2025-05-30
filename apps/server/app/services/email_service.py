@@ -143,6 +143,7 @@ class EmailService:
             "card_comment": {"color": "#10B981", "icon": "💬", "title": "Nuevo comentario"},
             "card_updated": {"color": "#F59E0B", "icon": "✏️", "title": "Tarjeta actualizada"},
             "project_invitation": {"color": "#8B5CF6", "icon": "👥", "title": "Invitación a proyecto"},
+            "project_obsolete": {"color": "#EF4444", "icon": "⚠️", "title": "Proyecto marcado como obsoleto"},
             "default": {"color": "#6B7280", "icon": "🔔", "title": "Notificación"}
         }
         
