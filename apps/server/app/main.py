@@ -68,7 +68,7 @@ app.add_middleware(
 )
 
 # Importar routers
-from app.routers import users, auth, boards, projects, notifications, project_lifecycle
+from app.routers import users, auth, boards, projects, notifications, project_lifecycle, sprints
 
 # Incluir routers en la aplicación
 app.include_router(users.router, prefix=settings.API_PREFIX)
@@ -77,6 +77,7 @@ app.include_router(boards.router, prefix=settings.API_PREFIX)
 app.include_router(projects.router, prefix=settings.API_PREFIX)
 app.include_router(project_lifecycle.router, prefix=settings.API_PREFIX)
 app.include_router(notifications.router, prefix=settings.API_PREFIX)
+app.include_router(sprints.router, prefix=settings.API_PREFIX)
 
 @app.on_event("startup")
 async def on_startup():
