@@ -17,7 +17,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "chart.js": "^4.4.8",
     "date-fns": "^4.1.0",
-    "preact": "^10.26.2",
+    "preact": "^10.27.0",
     "react-chartjs-2": "^5.3.0",
     "wouter-preact": "^3.6.1"
   },
